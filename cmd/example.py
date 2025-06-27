@@ -1,10 +1,11 @@
-from core.stock_api.stock_api import fetch_stock_price
+from core.di_container import Container
 
 def main():
+    container = Container()
     symbols = ['DDOG', 'S']
     for symbol in symbols:
         try:
-            price = fetch_stock_price(symbol)
+            price = container.fetch_stock_price(symbol)
             print(f"{symbol}: ${price:.2f}")
         except Exception as e:
             print(f"Failed to fetch price for {symbol}: {e}")
