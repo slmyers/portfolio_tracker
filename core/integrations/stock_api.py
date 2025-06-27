@@ -3,11 +3,11 @@ from core.config.config import get_alpha_vantage_api_key
 
 BASE_URL = 'https://www.alphavantage.co/query'
 
-def fetch_stock_price(symbol):
+def fetch_stock_price(symbol: str) -> float:
     """
     Fetch the latest stock price for the given symbol from Alpha Vantage API.
     """
-    api_key = get_alpha_vantage_api_key()
+    api_key: str = get_alpha_vantage_api_key()
     params = {
         'function': 'TIME_SERIES_INTRADAY',
         'symbol': symbol,

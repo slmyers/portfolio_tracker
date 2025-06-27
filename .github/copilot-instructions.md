@@ -1,3 +1,9 @@
 <!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
 
-This project is a Python script for tracking stock portfolios and fetching real-time stock prices using the Alpha Vantage API. Please generate code that is modular, readable, and follows best practices for API integration and error handling.
+This project is a modular Python application for financial data analysis and portfolio management. We currently have stock api integration but will also have csv integration. Research the interactive brokers activity report csv export structure.
+
+Always consider the principles of dependency injection and separation of concerns when designing the architecture.
+
+Be sure to read the documentation for the libraries and frameworks you are using to understand their best practices and recommended patterns.
+
+Read the /docs folder for more information on the project structure and usage guidelines. We will be using the files to generate code and architecture changes. We always update the appropriate .md file and possibly create new docs/*.md files when appropriate.

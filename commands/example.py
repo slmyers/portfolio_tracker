@@ -1,6 +1,6 @@
 from core.di_container import Container
 
-def main():
+def main() -> None:
     container = Container()
     stock_api = container.integrations.stock_api()
     symbols = ['DDOG', 'S']

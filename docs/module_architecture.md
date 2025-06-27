@@ -12,7 +12,7 @@ graph TD
     S1[stock_api.py]
     IC["IntegrationsContainer<br/>(DI Sub-Container)"]
     DI["di_container.py<br/>(Dependency Injector)"]
-    B[cmd]
+    B[commands]
     
     A --> A1
     A --> A2
@@ -39,7 +39,7 @@ graph TD
   - **integrations/**: Integrations with external services.
     - `stock_api.py`: Handles API integration for stock data.
   - `di_container.py`: Dependency injection container using `dependency-injector` to wire and provide dependencies, including an `IntegrationsContainer` sub-container for integrations like `stock_api`.
-- **cmd/**: Command-line entry points and scripts.
+- **commands/**: Command-line entry points and scripts.
   - `example.py`: Example entry point for running the application, retrieves dependencies from the DI container.
 
 ---

@@ -1,6 +1,7 @@
 import os
+from typing import NoReturn
 
-def load_env(env_path='.env'):
+def load_env(env_path: str = '.env') -> None:
     """
     Loads environment variables from a .env file into os.environ.
     """

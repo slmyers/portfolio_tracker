@@ -21,6 +21,17 @@ Run the example script from the project root:
 python -m cmd.example
 ```
 
+
+## Testing
+
+This project uses [pytest](https://docs.pytest.org/) for testing. To run all tests:
+
+```sh
+pytest
+```
+
+Unit tests for the lock module are in `tests/`.
+
 ## Project Structure
 
 - `core/`
@@ -30,7 +41,7 @@ python -m cmd.example
   - `integrations/`
     - `stock_api.py`: Fetches stock prices from Alpha Vantage
   - `di_container.py`: Dependency injection container
-- `cmd/`
+- `commands/`
   - `example.py`: Entry point, retrieves dependencies from the DI container
 - `requirements.txt`: Python dependencies
 - `.env`: Your API key (not tracked in git)
