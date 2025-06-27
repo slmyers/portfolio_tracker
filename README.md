@@ -1,3 +1,8 @@
+## TODO
+
+- Implement the generic CSV parsing module (`core/csv`)
+- Implement the Interactive Brokers (IBKR) CSV export module (`core/ibkr_csv`)
+- Implement the DataLoader module (`core/dataloader`)
 # Portfolio Tracker
 
 This project is a modular Python application for tracking stock portfolios and fetching real-time stock prices using the Alpha Vantage API. It uses dependency injection for clean architecture and easy extensibility.
