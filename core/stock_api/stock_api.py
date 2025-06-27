@@ -1,6 +1,5 @@
 import requests
-from config import get_alpha_vantage_api_key
-
+from core.config.config import get_alpha_vantage_api_key
 
 BASE_URL = 'https://www.alphavantage.co/query'
 
