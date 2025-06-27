@@ -8,20 +8,25 @@ This document outlines the planned architecture for the project modules and thei
 graph TD
     A[core]
     A1[config]
-    A2[stock_api]
+    A2[integrations]
+    S1[stock_api.py]
+    IC["IntegrationsContainer<br/>(DI Sub-Container)"]
     DI["di_container.py<br/>(Dependency Injector)"]
     B[cmd]
     
     A --> A1
     A --> A2
+    A2 --> S1
     A --> DI
+    DI --> IC
+    IC --> S1
     B -->|Entry Point| EX[example.py]
     B -->|Uses| DI
     DI -->|Provides| C1[config.py]
-    DI -->|Provides| S1[stock_api.py]
+    DI -->|Provides| IC
+    IC -->|Provides| S1[stock_api.py]
     A1 -->|Config Logic| C1[config.py]
     A1 -->|Env Loader| C2[load_env.py]
-    A2 -->|Stock API Logic| S1[stock_api.py]
 ```
 
 ## Description
@@ -31,9 +36,9 @@ graph TD
   - **config/**: Configuration and environment loading logic.
     - `config.py`: Centralized config access and validation.
     - `load_env.py`: Loads environment variables from `.env` files.
-  - **stock_api/**: Stock price and data fetching logic.
+  - **integrations/**: Integrations with external services.
     - `stock_api.py`: Handles API integration for stock data.
-  - `di_container.py`: Dependency injection container using `dependency-injector` to wire and provide dependencies.
+  - `di_container.py`: Dependency injection container using `dependency-injector` to wire and provide dependencies, including an `IntegrationsContainer` sub-container for integrations like `stock_api`.
 - **cmd/**: Command-line entry points and scripts.
   - `example.py`: Example entry point for running the application, retrieves dependencies from the DI container.
 
