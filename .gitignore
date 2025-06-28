@@ -1,3 +1,11 @@
+# Terraform state and lock files
+.terraform/
+*.tfstate
+*.tfstate.backup
+crash.log
+terraform.tfvars
+*.tfplan
+.terraform.lock.hcl
 .env
 __pycache__/
 *.pyc
