@@ -1,6 +1,43 @@
 from .load_env import load_env
 import os
 from typing import Optional
+from dataclasses import dataclass
+@dataclass(frozen=True)
+class PostgresConfig:
+    host: str
+    port: int
+    user: str
+    password: str
+    db: str
+
+
+@dataclass(frozen=True)
+class RedisConfig:
+    host: str
+    port: int
+
+def get_postgres_config(env_path: str = '.env') -> PostgresConfig:
+    """
+    Loads the .env file and returns a PostgresConfig object.
+    """
+    load_env(env_path)
+    return PostgresConfig(
+        host=os.environ.get('POSTGRES_HOST', 'localhost'),
+        port=int(os.environ.get('POSTGRES_PORT', 5432)),
+        user=os.environ.get('POSTGRES_USER', 'postgres'),
+        password=os.environ.get('POSTGRES_PASSWORD', 'postgres'),
+        db=os.environ.get('POSTGRES_DB', 'portfolio'),
+    )
+
+def get_redis_config(env_path: str = '.env') -> RedisConfig:
+    """
+    Loads the .env file and returns a RedisConfig object.
+    """
+    load_env(env_path)
+    return RedisConfig(
+        host=os.environ.get('REDIS_HOST', 'localhost'),
+        port=int(os.environ.get('REDIS_PORT', 6379)),
+    )
 
 
 def get_alpha_vantage_api_key(env_path: str = '.env') -> str:

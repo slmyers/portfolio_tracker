@@ -1,8 +1,9 @@
 from dependency_injector import containers, providers
-from core.config.config import get_alpha_vantage_api_key
+from core.config.config import get_alpha_vantage_api_key, get_postgres_config, get_redis_config
 from core.integrations import stock_api
 
 from core.cache import MemoryCache
+from core.cache.redis import RedisCache
 from core.lock.in_process import InProcessLock
 from core.logger import Logger
 
@@ -22,7 +23,15 @@ class IntegrationsContainer(containers.DeclarativeContainer):
 # Main DI container
 class Container(containers.DeclarativeContainer):
     config = providers.Singleton(get_alpha_vantage_api_key)
+    postgres_config = providers.Singleton(get_postgres_config)
+    redis_config = providers.Singleton(get_redis_config)
     integrations = providers.Container(IntegrationsContainer)
     cache = providers.Singleton(MemoryCache)
+    redis_cache = providers.Singleton(
+        RedisCache,
+        host=providers.Callable(lambda c: c.host, redis_config),
+        port=providers.Callable(lambda c: c.port, redis_config),
+        logger=providers.Singleton(Logger),
+    )
     get_named_lock = providers.Factory(lambda name: InProcessLock(name))
     logger = providers.Singleton(Logger)
