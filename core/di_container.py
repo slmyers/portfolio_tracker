@@ -4,6 +4,7 @@ from core.integrations import stock_api
 
 from core.cache import MemoryCache
 from core.lock.in_process import InProcessLock
+from core.logger import Logger
 
 # Factory function for stock_api with lock
 def stock_api_with_lock():
@@ -24,3 +25,4 @@ class Container(containers.DeclarativeContainer):
     integrations = providers.Container(IntegrationsContainer)
     cache = providers.Singleton(MemoryCache)
     get_named_lock = providers.Factory(lambda name: InProcessLock(name))
+    logger = providers.Singleton(Logger)
