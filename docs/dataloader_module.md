@@ -24,13 +24,15 @@ graph TD
 - Client calls `DataLoader.load(key)` for one or more keys
 - DataLoader batches requests and acquires a lock for the resource type
 - Checks cache (in-memory or persistent)
+- Deduplicates missing keys to avoid redundant fetches
 - Fetches missing data in a single batch call to the resource fetcher (e.g., stock_api)
 - Stores results in cache
-- Returns results to all waiting callers
+- Returns results to all waiting callers, preserving the original order and duplicates
 
 ## Key Decisions
 - Pluggable cache/coordination backend (in-memory, SQLite, Redis)
 - Locking for safe concurrent batching
+- Key deduplication before batch loading to optimize resource usage and avoid redundant fetches
 - Async and sync support (future-proofing for async APIs)
 - Extensible for any resource type (not just stock_api)
 
@@ -62,10 +64,10 @@ class DataLoader:
     def load_many(self, keys):
         with self._lock:
             # Check cache for keys
-            # Batch missing keys
-            # Call self._batch_load_fn for missing keys
+            # Deduplicate missing keys
+            # Call self._batch_load_fn for unique missing keys
             # Store results in cache
-            # Return results
+            # Return results, preserving original order and duplicates
             pass
 ```
 

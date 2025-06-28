@@ -2,6 +2,7 @@ from .load_env import load_env
 import os
 from typing import Optional
 
+
 def get_alpha_vantage_api_key(env_path: str = '.env') -> str:
     """
     Loads the .env file and returns the Alpha Vantage API key.
@@ -11,3 +12,10 @@ def get_alpha_vantage_api_key(env_path: str = '.env') -> str:
     if not api_key:
         raise ValueError("ALPHA VANTAGE API key not found in environment variables.")
     return api_key
+
+def get_log_level(env_path: str = '.env') -> str:
+    """
+    Loads the .env file and returns the log level (default INFO).
+    """
+    load_env(env_path)
+    return os.environ.get('LOG_LEVEL', 'INFO').upper()
