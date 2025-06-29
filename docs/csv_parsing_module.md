@@ -94,7 +94,8 @@ Choose the mode that best fits your use case. See the parser’s API documentati
 ---
 ## Testing
 
-For robust testing of the CSV parsing module, generate and use multiple synthetic test files. Store these in a directory such as `tests/test_data/` and consider including:
+
+For robust testing of the CSV parsing module, generate and use multiple synthetic test files. Store these in a directory such as `tests/test_data/` (see `tests/README.md` for naming conventions and coverage goals) and consider including:
 
 - Minimal valid CSVs (smoke tests)
 - Full-featured files with all possible sections and fields
