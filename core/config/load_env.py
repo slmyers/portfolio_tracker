@@ -1,5 +1,4 @@
 import os
-from typing import NoReturn
 
 def load_env(env_path: str = '.env') -> None:
     """
