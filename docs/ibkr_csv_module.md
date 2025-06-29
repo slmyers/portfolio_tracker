@@ -170,4 +170,18 @@ For robust testing of the IBKR CSV parsing module, it is recommended to generate
 Name these files descriptively, e.g., `ibkr_activity_minimal.csv`, `ibkr_activity_full.csv`, `ibkr_activity_edgecase.csv`, etc. This approach ensures your tests are organized, maintainable, and provide good coverage for all expected and edge-case scenarios.
 
 ---
+
+## Versioning and Format Changes
+
+IBKR may change the structure, field names, or semantics of their CSV exports over time. To ensure long-term maintainability and reliability:
+
+- Track the version or generation date of each IBKR CSV file (if available in the file header or metadata).
+- Design your parsers and handlers to be easily extensible for new or legacy formats (e.g., by subclassing, feature flags, or format detection logic).
+- When a breaking change is detected, create a new handler or parser version rather than modifying existing logic, to preserve backward compatibility.
+- Document supported versions and any known incompatibilities in this file.
+- Add tests for new and legacy formats as they are encountered.
+
+This approach will help you adapt quickly to changes in IBKR’s export formats and ensure your data pipeline remains robust.
+
+---
 Update this document as the IBKR CSV module evolves or as new report formats are encountered.

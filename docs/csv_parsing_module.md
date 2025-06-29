@@ -76,6 +76,21 @@ parser.parse('simple.csv')
 - Collect and report parsing errors with context (row number, section, etc.)
 - Optionally support strict and lenient modes
 
+### Strict vs. Lenient Modes
+
+The parser supports both strict and lenient error handling modes:
+
+- **Strict mode:** Parsing will stop and raise an error as soon as a problem is encountered (e.g., missing required fields, type errors, unknown sections). This is useful for data pipelines where data quality is critical.
+- **Lenient mode:** Parsing will continue even if errors are encountered. All errors and warnings are collected and made available for inspection after parsing. This is useful for exploratory analysis or when you want to process as much data as possible despite issues.
+
+You can configure the desired mode via a parameter to the parser (e.g., `strict=True` or `strict=False`). The mode affects how the parser handles:
+- Missing or extra fields
+- Type conversion errors
+- Unknown or malformed sections
+- Any other row-level or section-level validation failures
+
+Choose the mode that best fits your use case. See the parser’s API documentation for details on how to set the mode and retrieve error reports.
+
 ---
 ## Testing
 
@@ -89,6 +104,36 @@ For robust testing of the CSV parsing module, generate and use multiple syntheti
 - Very large files (for performance/streaming tests)
 
 Name these files descriptively, reflecting their content and format (e.g., `minimal.csv`, `full.csv`, `edgecase.csv`, or format-specific names like `ibkr_activity.csv`, `otherbroker_positions.csv`). This ensures your tests are organized, maintainable, and provide good coverage for all expected and edge-case scenarios across different CSV formats.
+
+---
+
+## Injecting Normalizers and Validators
+
+For maximum flexibility and testability, normalizers and validators should be injected into section handlers. This allows you to customize, reuse, or mock normalization and validation logic for different formats, environments, or tests.
+
+For example:
+
+```python
+class TradesHandler:
+    def __init__(self, date_normalizer, float_normalizer):
+        self.date_normalizer = date_normalizer
+        self.float_normalizer = float_normalizer
+
+    def handle_row(self, row: dict):
+        trade = {
+            'date': self.date_normalizer(row['Date/Time']),
+            'quantity': self.float_normalizer(row['Quantity']),
+            # ...other normalization...
+        }
+```
+
+You can then inject different normalizers as needed:
+
+```python
+handler = TradesHandler(date_normalizer=parse_ibkr_date, float_normalizer=float)
+```
+
+This approach keeps your code modular, testable, and highly configurable.
 
 ---
 Update this document as the CSV parsing module evolves or as new CSV formats are added.
