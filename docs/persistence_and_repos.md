@@ -135,8 +135,6 @@ class UserRepository:
 
 ---
 
-def run_migrations():
-
 ## 3. Migrations (Modular)
 
 ### Purpose
