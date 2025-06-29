@@ -251,7 +251,7 @@ if __name__ == "__main__":
 
 ---
 
-## 5. Summary
+## 6. Summary
 - **Persistence module:** Handles raw DB connections/clients.
 - **Repositories:** Encapsulate data access and business logic per domain.
 - **Migrations:** Versioned, repeatable schema changes, runnable via script or CLI.
