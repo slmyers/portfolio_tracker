@@ -106,6 +106,8 @@ For robust testing of the CSV parsing module, generate and use multiple syntheti
 
 Name these files descriptively, reflecting their content and format (e.g., `minimal.csv`, `full.csv`, `edgecase.csv`, or format-specific names like `ibkr_activity.csv`, `otherbroker_positions.csv`). This ensures your tests are organized, maintainable, and provide good coverage for all expected and edge-case scenarios across different CSV formats.
 
+Rows with a different number of columns than the header are considered malformed. The parser will raise or record an error for these cases, and this is covered by tests such as `bad_row_length.csv`.
+
 ---
 
 ## Injecting Normalizers and Validators

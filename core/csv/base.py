@@ -52,6 +52,8 @@ class BaseCSVParser:
                     self._handle_error(f"No handler for section '{current_section}' at row {row_num+1}")
                     continue
                 try:
+                    if len(row) != len(header):
+                        raise ValueError(f"Row length {len(row)} does not match header length {len(header)} at row {row_num+1}")
                     data = dict(zip(header, row))
                     handler.handle_row(data)
                 except Exception as e:

@@ -68,3 +68,29 @@ def test_edgecase_csv():
     assert handler.rows[1]['Quantity'] == '-10'
     assert handler.rows[2]['Quantity'] == '0'
     assert handler.rows[3]['Quantity'] == '1000000000'
+
+def test_bad_row_length_strict():
+    class Handler(CsvSectionHandler):
+        def __init__(self):
+            self.rows = []
+        def handle_row(self, row: dict):
+            self.rows.append(row)
+    handler = Handler()
+    parser = BaseCSVParser(section_handlers={None: handler}, strict=True)
+    with pytest.raises(RuntimeError) as excinfo:
+        parser.parse(os.path.join(TEST_DIR, 'bad_row_length.csv'))
+    assert "Row length" in str(excinfo.value)
+
+def test_bad_row_length_lenient():
+    class Handler(CsvSectionHandler):
+        def __init__(self):
+            self.rows = []
+        def handle_row(self, row: dict):
+            self.rows.append(row)
+    handler = Handler()
+    parser = BaseCSVParser(section_handlers={None: handler}, strict=False)
+    parser.parse(os.path.join(TEST_DIR, 'bad_row_length.csv'))
+    errors = parser.get_errors()
+    assert any("Row length" in e for e in errors)
+    # Only valid rows should be appended
+    assert len(handler.rows) == 2  # Only the first and last rows are valid
