@@ -1,6 +1,6 @@
 import pytest
 from core.persistence.postgres import PostgresPool, CursorWithDeadline
-from core.persistence.deadline_manager import DeadlineManager, DeadlineExceeded
+from core.deadline_manager import DeadlineManager, DeadlineExceeded
 
 class DummyConn:
     def cursor(self):
@@ -59,3 +59,56 @@ def test_deadline_manager_check():
     time.sleep(0.01)
     with pytest.raises(DeadlineExceeded):
         deadline.check()
+
+
+def test_postgres_pool_connection_context_manager_yields_and_returns():
+    events = []
+    class DummyConn:
+        def __init__(self):
+            self.closed = False
+        def cursor(self):
+            return DummyCursor()
+        def close(self):
+            self.closed = True
+    class DummyPool:
+        def __init__(self, **kwargs):
+            self.conn = DummyConn()
+            self.put_called = False
+        def getconn(self):
+            events.append('getconn')
+            return self.conn
+        def putconn(self, conn):
+            events.append('putconn')
+            self.put_called = True
+        def closeall(self):
+            pass
+    pool = PostgresPool(connection_pool_cls=DummyPool)
+    with pool.connection() as (conn, deadline_mgr):
+        assert isinstance(conn, DummyConn)
+        assert deadline_mgr is None
+        assert events == ['getconn']
+    # After context block, putconn should have been called
+    assert events == ['getconn', 'putconn']
+
+def test_postgres_pool_connection_context_manager_with_deadline():
+    events = []
+    class DummyConn:
+        def cursor(self):
+            return DummyCursor()
+    class DummyPool:
+        def __init__(self, **kwargs):
+            self.conn = DummyConn()
+        def getconn(self):
+            events.append('getconn')
+            return self.conn
+        def putconn(self, conn):
+            events.append('putconn')
+        def closeall(self):
+            pass
+    pool = PostgresPool(connection_pool_cls=DummyPool)
+    deadline = DeadlineManager(timeout_seconds=1)
+    with pool.connection(deadline) as (conn, deadline_mgr):
+        assert isinstance(conn, DummyConn)
+        assert deadline_mgr is deadline
+        assert events == ['getconn']
+    assert events == ['getconn', 'putconn']

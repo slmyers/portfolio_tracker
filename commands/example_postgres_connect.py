@@ -1,5 +1,5 @@
 from core.di_container import Container
-from core.persistence.deadline_manager import DeadlineManager, DeadlineExceeded
+from core.deadline_manager import DeadlineManager, DeadlineExceeded
 from core.persistence.postgres import CursorWithDeadline
 import time
 

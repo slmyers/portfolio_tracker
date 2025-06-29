@@ -66,6 +66,38 @@ core/persistence/
   ...
 ```
 
+## Deadline Enforcement (Query Timeouts)
+
+To ensure that database queries do not exceed a specified time limit, the project provides a general-purpose `DeadlineManager` utility in `core/deadline_manager.py`. This can be used to enforce deadlines (timeouts) for any resource, including database queries.
+
+- `DeadlineManager(timeout_seconds)` starts a timer and raises `DeadlineExceeded` if the deadline is exceeded.
+- The `CursorWithDeadline` wrapper (see `core/persistence/postgres.py`) checks the deadline before each query execution.
+- This pattern is useful for preventing long-running queries from blocking application resources.
+
+**Example Usage:**
+```python
+from core.persistence.postgres import PostgresPool, CursorWithDeadline
+from core.deadline_manager import DeadlineManager, DeadlineExceeded
+
+pool = PostgresPool()
+deadline = DeadlineManager(timeout_seconds=2)
+
+try:
+    with pool.connection(deadline) as (conn, deadline_mgr):
+        with conn.cursor() as raw_cursor:
+            cursor = CursorWithDeadline(raw_cursor, deadline_mgr)
+            cursor.execute("SELECT 1;")
+            result = cursor.fetchone()
+            print(result)
+except DeadlineExceeded:
+    print("Query exceeded the deadline!")
+finally:
+    pool.closeall()
+```
+
+See also: `core/deadline_manager.py` for implementation details.
+
+
 ### Example (Postgres)
 ```python
 # core/persistence/postgres.py

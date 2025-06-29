@@ -1,6 +1,6 @@
 import time
 import pytest
-from core.persistence.deadline_manager import DeadlineManager, DeadlineExceeded
+from core.deadline_manager import DeadlineManager, DeadlineExceeded
 
 def test_deadline_manager_not_exceeded():
     deadline = DeadlineManager(timeout_seconds=1)
