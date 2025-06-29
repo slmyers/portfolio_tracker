@@ -135,5 +135,9 @@ handler = TradesHandler(date_normalizer=parse_ibkr_date, float_normalizer=float)
 
 This approach keeps your code modular, testable, and highly configurable.
 
+## Note on File Streaming
+
+Currently, file streaming is not required for the supported CSV formats, as files are typically small enough to be read into memory. If streaming becomes necessary in the future (e.g., for very large files), streaming support will be implemented in the `BaseCSVParser` so that all format-specific parsers can benefit from it without code duplication.
+
 ---
 Update this document as the CSV parsing module evolves or as new CSV formats are added.

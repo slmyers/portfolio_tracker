@@ -3,6 +3,8 @@
 ## Overview
 This document outlines the design for a specialized module to parse and process Interactive Brokers (IBKR) CSV exports. The module is extensible and can support multiple IBKR CSV formats. A dedicated subclass, `IbkrActivityReportParser`, is provided for parsing IBKR Activity Report CSVs, with targeted field extraction and normalization.
 
+> **Note:** This document focuses on IBKR-specific logic. For general CSV parsing architecture, handler registration, error handling, and normalization/validation strategies, see the base CSV parsing module documentation.
+
 
 # Goals
 - Accurately parse IBKR activity report CSVs, including all relevant sections (Trades, Dividends, Interest, Fees, etc.)
@@ -83,9 +85,13 @@ activity = parser.parse('ibkr_activity.csv')
 - Normalization and validation logic can be injected or configured
 - Additional CSV parsers for other formats can be created by inheriting from `BaseCSVParser`
 
+For more on handler injection and normalization strategies, see the extensibility and normalization sections of the base CSV parsing module documentation.
+
 ## Error Handling
 - Detailed error and warning reporting with section and row context
 - Optionally support strict and lenient parsing modes
+
+See the base CSV parsing module documentation for configuration details and additional error handling strategies.
 
 
 ## IBKR Activity Report Parsing
@@ -180,6 +186,11 @@ IBKR may change the structure, field names, or semantics of their CSV exports ov
 - When a breaking change is detected, create a new handler or parser version rather than modifying existing logic, to preserve backward compatibility.
 - Document supported versions and any known incompatibilities in this file.
 - Add tests for new and legacy formats as they are encountered.
+
+
+## Note on File Size and Streaming
+
+IBKR activity reports are typically not large enough to require file streaming. For most use cases, it is practical and simpler to read the entire file into memory using standard file reading and the `csv` module. If you ever encounter unusually large files, you can revisit streaming, but for the vast majority of reports, this is not necessary.
 
 This approach will help you adapt quickly to changes in IBKR’s export formats and ensure your data pipeline remains robust.
 
