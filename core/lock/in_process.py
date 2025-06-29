@@ -1,7 +1,7 @@
 
 from .lock import Lock
 import threading
-from typing import Dict, cast
+from typing import Dict
 
 
 class InProcessLock(Lock):

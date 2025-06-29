@@ -1,5 +1,6 @@
 from dependency_injector import containers, providers
 from core.config.config import get_alpha_vantage_api_key, get_postgres_config, get_redis_config
+from core.persistence.postgres import PostgresPool
 from core.integrations import stock_api
 
 from core.cache import MemoryCache
@@ -33,5 +34,6 @@ class Container(containers.DeclarativeContainer):
         port=providers.Callable(lambda c: c.port, redis_config),
         logger=providers.Singleton(Logger),
     )
+    postgres_pool = providers.Singleton(PostgresPool)
     get_named_lock = providers.Factory(lambda name: InProcessLock(name))
     logger = providers.Singleton(Logger)

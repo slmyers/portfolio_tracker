@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 from core.cache.memory import MemoryCache
 from core.cache.redis import RedisCache
 

@@ -1,5 +1,5 @@
 
-from typing import Callable, Any, List, Dict, Optional
+from typing import Callable, Any, List, Optional
 from core.lock.lock import Lock
 from core.logger import Logger
 
@@ -80,7 +80,7 @@ class DataLoader:
                 raise TypeError("All keys passed to batch_load_fn must be primitive types (str, int, float, bool)")
             if keys:
                 first_type = type(keys[0])
-                if not all(type(k) == first_type for k in keys):
+                if not all(type(k) is first_type for k in keys):
                     raise TypeError("All keys passed to batch_load_fn must be of the same type")
             return fn(keys)
         return wrapper
