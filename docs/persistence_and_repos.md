@@ -237,12 +237,27 @@ if __name__ == "__main__":
   ```
 - This script will discover and apply all new migrations in every `services/*/migrations/` folder, in order.
 
+
 ### Option 2: CLI Tool (Optional)
 - You may add a CLI (e.g., using [Typer](https://typer.tiangolo.com/) or [Click](https://click.palletsprojects.com/)) for commands like:
   ```sh
   python manage.py migrate
   python manage.py makemigration
   python manage.py rollback
+  ```
+- **Note:** `manage.py` is not present by default. If you wish to add CLI support, create a `manage.py` at the project root. For example:
+  ```python
+  # manage.py (stub example)
+  import typer
+  app = typer.Typer()
+
+  @app.command()
+  def migrate():
+      from core.migrations.migrate import run_migrations
+      run_migrations()
+
+  if __name__ == "__main__":
+      app()
   ```
 - This can be extended to support multiple backends, environments, or advanced migration workflows.
 
