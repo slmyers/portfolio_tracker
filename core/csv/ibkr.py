@@ -1,5 +1,6 @@
 from typing import Dict, Optional, List
 from core.csv.base import BaseCSVParser, CsvSectionHandler
+from datetime import datetime
 
 def parse_float(val):
     try:
@@ -8,6 +9,17 @@ def parse_float(val):
         return float(str(val).replace(",", ""))
     except Exception:
         return None
+    
+class IbkrStatementHandler(CsvSectionHandler):
+    def __init__(self):
+        self.statement_metadata = {}
+
+    def handle_row(self, row: dict):
+        # Accepts a dict with keys like 'field_name' and 'field_value' from generic parsing
+        field = row.get('field_name')
+        value = row.get('field_value')
+        if field:
+            self.statement_metadata[field] = value
 
 class IbkrTradesHandler(CsvSectionHandler):
     def __init__(self):
@@ -81,7 +93,6 @@ def ibkr_section_header_detector(row: List[str]) -> Optional[str]:
     return None
 
 class IbkrCsvParser(BaseCSVParser):
-
     def __init__(
         self,
         section_handlers: Optional[Dict[Optional[str], CsvSectionHandler]] = None,
@@ -93,6 +104,7 @@ class IbkrCsvParser(BaseCSVParser):
                 "Trades": IbkrTradesHandler(),
                 "Dividends": IbkrDividendsHandler(),
                 "Open Positions": IbkrOpenPositionsHandler(),
+                "Statement": IbkrStatementHandler(),
             }
         super().__init__(
             section_handlers=section_handlers,
@@ -116,6 +128,11 @@ class IbkrCsvParser(BaseCSVParser):
     def positions(self):
         handler = self.section_handlers.get("Open Positions")
         return handler.positions if handler else []
+    
+    @property
+    def meta(self):
+        handler = self.section_handlers.get("Statement")
+        return handler.statement_metadata if handler else {}
 
 
     def _parse_section_trades(self, rows, handler):
@@ -141,6 +158,43 @@ class IbkrCsvParser(BaseCSVParser):
             summary_row_check=lambda row: (row[2].strip().lower().startswith('total')) if len(row) > 2 else False,
             header_debug_label="Dividends"
         )
+
+    def _parse_section_statement(self, rows, handler=None):
+        if self.logger:
+            self.logger.debug(f"[IBKR DEBUG] Parsing Statement section with {len(rows)} rows")
+        for row in rows:
+            if self.logger:
+                self.logger.debug(f"[IBKR DEBUG] Statement row: {row}")
+            if len(row) >= 4 and row[1] == "Data":
+                handler.handle_row({
+                    "field_name": row[2].strip(),
+                    "field_value": row[3].strip()
+                })
+        meta = handler.statement_metadata
+        if self.logger:
+            self.logger.debug(f"[IBKR DEBUG] Extracted statement_info: {meta}")
+        # Parse period
+        period = meta.get("Period", "")
+        if " - " in period:
+            period_start, period_end = [d.strip().replace('"', '') for d in period.split(" - ")]
+            try:
+                meta["PeriodStart"] = datetime.strptime(period_start, "%B %d, %Y").date()
+                meta["PeriodEnd"] = datetime.strptime(period_end, "%B %d, %Y").date()
+            except Exception as e:
+                if self.logger:
+                    self.logger.debug(f"[IBKR DEBUG] Failed to parse period: {e}")
+                meta["PeriodStart"] = period_start
+                meta["PeriodEnd"] = period_end
+        # Parse generated date
+        when_generated = meta.get("WhenGenerated", "").replace('"', '').split(",")[0]
+        try:
+            meta["GeneratedAt"] = datetime.strptime(when_generated, "%Y-%m-%d")
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"[IBKR DEBUG] Failed to parse generated date: {e}")
+            meta["GeneratedAt"] = when_generated
+        if self.logger:
+            self.logger.debug(f"[IBKR DEBUG] Final statement_metadata: {meta}")
 
     def _parse_section_common(self, rows, handler, summary_row_check, header_debug_label=None):
         """
@@ -185,7 +239,15 @@ class IbkrCsvParser(BaseCSVParser):
         If sections is None, print all. Otherwise, print only the specified sections (list of str).
         """
         if sections is None:
-            sections = ['trades', 'dividends', 'positions']
+            sections = ['statement', 'trades', 'dividends', 'positions']
+        if 'statement' in sections or 'meta' in sections:
+            self.logger.info("=== Statement Metadata ===")
+            meta = self.meta
+            if meta:
+                for k, v in meta.items():
+                    self.logger.info(f"{k}: {v}")
+            else:
+                self.logger.info("No statement metadata found.")
         if 'trades' in sections:
             self.logger.info("=== Trades ===")
             if self.trades:
@@ -213,7 +275,7 @@ class IbkrCsvParser(BaseCSVParser):
         Per-section parsing for IBKR's multi-section CSV format. Each section is parsed by a dedicated method for robustness.
         """
         import csv
-        with open(file_path, newline='', encoding='utf-8') as f:
+        with open(file_path, newline='', encoding='utf-8-sig') as f:
             reader = list(csv.reader(f))
         # Find all section start indices
         section_indices = []
@@ -266,25 +328,3 @@ class IbkrCsvParser(BaseCSVParser):
         """
         def normalize_field(field):
             return field.strip().lower().replace(' ', '_').replace('/', '_')
-        header = None
-        normalized_header = None
-        for row_num, row in enumerate(rows):
-            if not any(cell.strip() for cell in row):
-                continue
-            row_type = row[1].strip() if len(row) > 1 else None
-            if row_type == 'Header':
-                header = row[2:]
-                normalized_header = [normalize_field(h) for h in header]
-                continue
-            if row_type == 'Data':
-                if not header:
-                    continue
-                # Skip summary/total rows (e.g., where the third column is 'Total', 'Total in CAD', etc.)
-                currency_or_total = row[2].strip() if len(row) > 2 else ''
-                if currency_or_total.lower().startswith('total'):
-                    continue
-                data_row = row[2:]
-                if len(data_row) != len(header):
-                    continue
-                data = dict(zip(normalized_header, data_row))
-                handler.handle_row(data)

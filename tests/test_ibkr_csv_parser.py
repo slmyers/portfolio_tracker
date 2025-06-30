@@ -43,3 +43,15 @@ def test_ibkr_pretty_print():
     assert "Trades" in out
     assert "Dividends" in out
     assert "Open Positions" in out
+
+def test_ibkr_statement_metadata():
+    logger = ListLogger("test_ibkr_meta")
+    parser = IbkrCsvParser(strict=False, logger=logger)
+    parser.parse(TEST_CSV_PATH)
+    meta = parser.meta
+    from pprint import pprint
+    pprint(logger.records)
+    assert meta is not None, "Statement metadata should be parsed."
+    assert meta.get("BrokerName") == "Interactive Brokers Canada Inc.", "BrokerName should match."
+    assert "PeriodStart" in meta and "PeriodEnd" in meta, "PeriodStart and PeriodEnd should be present."
+    assert meta["PeriodStart"].year == 2025, "PeriodStart year should be 2025."
