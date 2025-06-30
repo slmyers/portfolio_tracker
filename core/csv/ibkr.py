@@ -118,72 +118,34 @@ class IbkrCsvParser(BaseCSVParser):
 
 
     def _parse_section_trades(self, rows, handler):
-        """
-        Custom parser for Trades section to skip summary/total rows and handle header/data mapping.
-        """
-        def normalize_field(field):
-            return field.strip().lower().replace(' ', '_').replace('/', '_')
-        header = None
-        normalized_header = None
-        for row_num, row in enumerate(rows):
-            if not any(cell.strip() for cell in row):
-                continue
-            row_type = row[1].strip() if len(row) > 1 else None
-            if row_type == 'Header':
-                header = row[2:]
-                normalized_header = [normalize_field(h) for h in header]
-                self.logger.debug(f"[IBKR DEBUG] Detected header in Trades: {header}")
-                continue
-            if row_type == 'Data':
-                if not header:
-                    self.logger.warning("[IBKR WARNING] Data row encountered before header in Trades section.")
-                    continue
-                symbol_or_total = row[2].strip() if len(row) > 2 else ''
-                if symbol_or_total.lower().startswith('total') or symbol_or_total.lower().startswith('subtotal'):
-                    self.logger.debug(f"[IBKR DEBUG] Skipping summary row in Trades: {row}")
-                    continue
-                data_row = row[2:]
-                if len(data_row) != len(header):
-                    self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in Trades: {data_row} vs {header}")
-                    continue
-                data = dict(zip(normalized_header, data_row))
-                handler.handle_row(data)
+        self._parse_section_common(
+            rows,
+            handler,
+            summary_row_check=lambda row: (row[2].strip().lower().startswith('total') or row[2].strip().lower().startswith('subtotal')) if len(row) > 2 else False,
+            header_debug_label="Trades"
+        )
 
     def _parse_section_open_positions(self, rows, handler):
-        """
-        Custom parser for Open Positions section to skip summary/total rows and handle header/data mapping.
-        """
-        def normalize_field(field):
-            return field.strip().lower().replace(' ', '_').replace('/', '_')
-        header = None
-        normalized_header = None
-        for row_num, row in enumerate(rows):
-            if not any(cell.strip() for cell in row):
-                continue
-            row_type = row[1].strip() if len(row) > 1 else None
-            if row_type == 'Header':
-                header = row[2:]
-                normalized_header = [normalize_field(h) for h in header]
-                self.logger.debug(f"[IBKR DEBUG] Detected header in Open Positions: {header}")
-                continue
-            if row_type == 'Data':
-                if not header:
-                    self.logger.warning("[IBKR WARNING] Data row encountered before header in Open Positions section.")
-                    continue
-                symbol_or_total = row[2].strip() if len(row) > 2 else ''
-                if symbol_or_total.lower().startswith('total') or symbol_or_total.lower().startswith('subtotal'):
-                    self.logger.debug(f"[IBKR DEBUG] Skipping summary row in Open Positions: {row}")
-                    continue
-                data_row = row[2:]
-                if len(data_row) != len(header):
-                    self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in Open Positions: {data_row} vs {header}")
-                    continue
-                data = dict(zip(normalized_header, data_row))
-                handler.handle_row(data)
+        self._parse_section_common(
+            rows,
+            handler,
+            summary_row_check=lambda row: (row[2].strip().lower().startswith('total') or row[2].strip().lower().startswith('subtotal')) if len(row) > 2 else False,
+            header_debug_label="Open Positions"
+        )
 
     def _parse_section_dividends(self, rows, handler):
+        self._parse_section_common(
+            rows,
+            handler,
+            summary_row_check=lambda row: (row[2].strip().lower().startswith('total')) if len(row) > 2 else False,
+            header_debug_label="Dividends"
+        )
+
+    def _parse_section_common(self, rows, handler, summary_row_check, header_debug_label=None):
         """
-        Custom parser for Dividends section to skip summary/total rows and handle currency changes.
+        Shared parsing logic for IBKR sections. Skips summary/total rows and handles header/data mapping.
+        summary_row_check: function(row) -> bool, returns True if row should be skipped as summary.
+        header_debug_label: optional string for debug logging.
         """
         def normalize_field(field):
             return field.strip().lower().replace(' ', '_').replace('/', '_')
@@ -196,19 +158,22 @@ class IbkrCsvParser(BaseCSVParser):
             if row_type == 'Header':
                 header = row[2:]
                 normalized_header = [normalize_field(h) for h in header]
-                self.logger.debug(f"[IBKR DEBUG] Detected header in Dividends: {header}")
+                if self.logger and header_debug_label:
+                    self.logger.debug(f"[IBKR DEBUG] Detected header in {header_debug_label}: {header}")
                 continue
             if row_type == 'Data':
                 if not header:
-                    self.logger.warning("[IBKR WARNING] Data row encountered before header in Dividends section.")
+                    if self.logger and header_debug_label:
+                        self.logger.warning(f"[IBKR WARNING] Data row encountered before header in {header_debug_label} section.")
                     continue
-                currency_or_total = row[2].strip() if len(row) > 2 else ''
-                if currency_or_total.lower().startswith('total'):
-                    self.logger.debug(f"[IBKR DEBUG] Skipping summary row in Dividends: {row}")
+                if summary_row_check(row):
+                    if self.logger and header_debug_label:
+                        self.logger.debug(f"[IBKR DEBUG] Skipping summary row in {header_debug_label}: {row}")
                     continue
                 data_row = row[2:]
                 if len(data_row) != len(header):
-                    self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in Dividends: {data_row} vs {header}")
+                    if self.logger and header_debug_label:
+                        self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in {header_debug_label}: {data_row} vs {header}")
                     continue
                 data = dict(zip(normalized_header, data_row))
                 handler.handle_row(data)
