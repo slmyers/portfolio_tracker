@@ -98,6 +98,7 @@ class IbkrCsvParser(BaseCSVParser):
             section_handlers=section_handlers,
             strict=strict,
             section_header_detector=ibkr_section_header_detector,
+            logger=logger,
         )
         self.logger = logger
 
@@ -260,7 +261,6 @@ class IbkrCsvParser(BaseCSVParser):
                 data = dict(zip(normalized_header, data_row))
                 handler.handle_row(data)
 
-    def _parse_section_dividends(self, rows, handler):
         """
         Custom parser for Dividends section to skip summary/total rows and handle currency changes.
         """
