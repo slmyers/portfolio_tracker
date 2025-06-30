@@ -42,6 +42,14 @@ class MySectionHandler(CsvSectionHandler):
         # process row
         pass
 
+class MyLogger:
+    def debug(self, msg, *a, **kw):
+        print(msg)
+    def info(self, msg, *a, **kw):
+        print(msg)
+    def warning(self, msg, *a, **kw):
+        print(msg)
+
 # Example of a custom parser inheriting from BaseCSVParser
 class MyCustomCsvParser(BaseCSVParser):
     pass  # Implement format-specific logic as needed
@@ -50,15 +58,18 @@ class MyCustomCsvParser(BaseCSVParser):
 parser = MyCustomCsvParser(section_handlers={
     'Trades': MySectionHandler(),
     'Dividends': MySectionHandler(),
-})
+}, logger=MyLogger())
 parser.parse('activity.csv')
 
 # Single-section CSV example
 parser = MyCustomCsvParser(section_handlers={
     None: MySectionHandler(),  # Use None or a default key for single-section CSVs
-})
+}, logger=MyLogger())
 parser.parse('simple.csv')
 ```
+## Logger Requirement
+
+`BaseCSVParser` requires a `logger` argument for debug/info output. The logger must implement at least `debug`, `info`, and `warning` methods. All output is routed through this logger, supporting dependency injection and separation of concerns.
 
 ## Key Features
 - Section-aware parsing (for multi-section CSVs)

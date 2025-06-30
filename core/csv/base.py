@@ -14,16 +14,19 @@ class BaseCSVParser:
         section_handlers: Dict[Optional[str], CsvSectionHandler],
         strict: bool = True,
         section_header_detector: Optional[Callable[[List[str]], Optional[str]]] = None,
+        logger=None,
     ):
         """
         section_handlers: Dict mapping section name (or None for single-section) to handler
         strict: If True, raise on errors; if False, collect errors and continue
         section_header_detector: Optional function to detect section headers from a row
+        logger: Logger instance for debug/info output (required)
         """
         self.section_handlers = section_handlers
         self.strict = strict
         self.section_header_detector = section_header_detector
         self.errors = []
+        self.logger = logger
 
     def parse(self, file_path: str):
         current_section = None
@@ -32,27 +35,26 @@ class BaseCSVParser:
         with open(file_path, newline='', encoding='utf-8') as f:
             reader = csv.reader(f)
             for row_num, row in enumerate(reader):
-                #print("ROW:", row)
                 if not any(cell.strip() for cell in row):
                     continue  # skip blank lines
                 # Section header detection
                 section = self._detect_section(row)
                 if section is not None:
-                    print(f"[DEBUG] Section change at row {row_num+1}: {current_section} -> {section}")
+                    self.logger.debug(f"[DEBUG] Section change at row {row_num+1}: {current_section} -> {section}")
                     current_section = section
                     handler = self.section_handlers.get(current_section)
                     header = None
                     continue
                 # Header row detection (first non-empty row after section header)
                 if header is None:
-                    print(f"[DEBUG] New header for section '{current_section}' at row {row_num+1}: {row}")
+                    self.logger.debug(f"[DEBUG] New header for section '{current_section}' at row {row_num+1}: {row}")
                     header = row
                     continue
                 # Data row
                 if handler is None:
                     handler = self.section_handlers.get(None)
                 if handler is None:
-                    print(f"[DEBUG] No handler for section '{current_section}' at row {row_num+1}")
+                    self.logger.debug(f"[DEBUG] No handler for section '{current_section}' at row {row_num+1}")
                     self._handle_error(f"No handler for section '{current_section}' at row {row_num+1}")
                     continue
                 try:
@@ -61,7 +63,7 @@ class BaseCSVParser:
                     data = dict(zip(header, row))
                     handler.handle_row(data)
                 except Exception as e:
-                    print(f"[DEBUG] Error in section '{current_section}' at row {row_num+1}: {e}")
+                    self.logger.debug(f"[DEBUG] Error in section '{current_section}' at row {row_num+1}: {e}")
                     self._handle_error(f"Error in section '{current_section}' at row {row_num+1}: {e}")
         if self.errors and self.strict:
             raise RuntimeError(f"Parsing failed with errors: {self.errors}")

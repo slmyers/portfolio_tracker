@@ -30,7 +30,16 @@ To add a new section:
 ## Example Usage
 ```python
 from core.csv.ibkr import IbkrCsvParser
-parser = IbkrCsvParser()
+
+class MyLogger:
+    def debug(self, msg, *a, **kw):
+        print(msg)
+    def info(self, msg, *a, **kw):
+        print(msg)
+    def warning(self, msg, *a, **kw):
+        print(msg)
+
+parser = IbkrCsvParser(strict=False, logger=MyLogger())
 parser.parse('ibkr_year_to_date.csv')
 parser.pretty_print()
 ```
@@ -53,7 +62,10 @@ This document outlines the design for a specialized module to parse and process 
 # Architecture
 
 - `BaseCSVParser` class in `core/csv/base.py`: Provides common CSV parsing interface and utilities.
-- `IbkrCsvParser` class in `core/csv/ibkr.py`: Inherits from `BaseCSVParser` and implements IBKR-specific, per-section parsing logic.
+- `IbkrCsvParser` class in `core/csv/ibkr.py`: Inherits from `BaseCSVParser` and implements IBKR-specific, per-section parsing logic. Requires a logger argument for debug/info output.
+## Logger Requirement
+
+`IbkrCsvParser` requires a `logger` argument for debug/info output. The logger must implement at least `debug`, `info`, and `warning` methods. All output, including pretty print, is routed through this logger, supporting dependency injection and separation of concerns.
 - Per-section parser methods (e.g., `_parse_section_trades`, `_parse_section_dividends`, `_parse_section_open_positions`) for robust handling of each section.
 - Section-specific handlers (e.g., `IbkrTradesHandler`, `IbkrDividendsHandler`, `IbkrOpenPositionsHandler`).
 - Data normalization utilities (e.g., currency conversion, symbol mapping).
