@@ -1,3 +1,39 @@
+# IBKR CSV Parsing Module
+This module provides robust parsing for Interactive Brokers (IBKR) activity report CSVs, which are multi-section, multi-header, and contain summary rows. The parser is designed to extract trades, dividends, and open positions, and is extensible for other sections.
+## Design Overview
+- The main `IbkrCsvParser` class uses a per-section parsing architecture.
+- Each section (e.g., Trades, Dividends, Open Positions) has its own dedicated parser method (`_parse_section_<section_name>`) for robust, section-specific handling.
+- The parser detects section and row types using the first and second columns, respectively.
+- Headers are set only when the row type is 'Header'.
+- Data rows are mapped to the current header, skipping the first two columns.
+- Summary rows (SubTotal/Total) are skipped by default in each section parser.
+- Debug logging is focused on relevant sections.
+## Rationale for Per-Section Parsers
+- IBKR CSVs are not regular tables; each section can have unique quirks (e.g., summary rows, currency changes, multi-currency totals).
+- Per-section parsers allow for robust, maintainable, and extensible code.
+- Adding a new section is as simple as implementing a new `_parse_section_<section_name>` method and handler.
+## Extending the Module
+To add a new section:
+1. Implement a handler class for the section (subclass `CsvSectionHandler`).
+2. Add a `_parse_section_<section_name>` method to `IbkrCsvParser` for custom parsing logic.
+3. Register the handler in the `section_handlers` dict in the parser's constructor.
+4. Document any quirks or special handling in this file.
+## Current Sections
+- **Trades**: Extracts trade details, skips summary rows.
+- **Dividends**: Extracts dividend payments, skips summary/total rows, handles currency changes.
+- **Open Positions**: Extracts open positions, skips summary/total rows.
+- **Generic**: Any section without a custom parser uses a generic table parser.
+## Known Issues & Considerations
+- IBKR may change CSV structure; always validate with new exports.
+- Some summary rows may not be detected if IBKR changes their format or column order.
+- If a section's format changes, add or update its custom parser.
+## Example Usage
+```python
+from core.csv.ibkr import IbkrCsvParser
+parser = IbkrCsvParser()
+parser.parse('ibkr_year_to_date.csv')
+parser.pretty_print()
+```
 # Interactive Brokers (IBKR) CSV Export Module Design
 
 ## Overview
@@ -15,11 +51,13 @@ This document outlines the design for a specialized module to parse and process 
 
 
 # Architecture
+
 - `BaseCSVParser` class in `core/csv/base.py`: Provides common CSV parsing interface and utilities.
-- `IbkrCsvParser` class in `core/csv/ibkr.py`: Inherits from `BaseCSVParser` and implements IBKR-specific logic.
-- Section-specific handlers (e.g., `IbkrTradesHandler`, `IbkrDividendsHandler`)
-- Data normalization utilities (e.g., currency conversion, symbol mapping)
-- Error and warning reporting for malformed or unexpected data
+- `IbkrCsvParser` class in `core/csv/ibkr.py`: Inherits from `BaseCSVParser` and implements IBKR-specific, per-section parsing logic.
+- Per-section parser methods (e.g., `_parse_section_trades`, `_parse_section_dividends`, `_parse_section_open_positions`) for robust handling of each section.
+- Section-specific handlers (e.g., `IbkrTradesHandler`, `IbkrDividendsHandler`, `IbkrOpenPositionsHandler`).
+- Data normalization utilities (e.g., currency conversion, symbol mapping).
+- Error and warning reporting for malformed or unexpected data.
 
 ## Architecture Diagram
 
@@ -31,45 +69,40 @@ classDiagram
     }
     class IbkrCsvParser {
         +parse()
+        +_parse_section_trades()
+        +_parse_section_dividends()
+        +_parse_section_open_positions()
+        +_parse_section_generic()
     }
-    class IbkrActivityReportParser
     class IbkrTradesHandler
     class IbkrDividendsHandler
-    class IbkrOtherSectionHandler
+    class IbkrOpenPositionsHandler
 
     BaseCSVParser <|-- IbkrCsvParser
-    IbkrCsvParser <|-- IbkrActivityReportParser
-    IbkrActivityReportParser o-- IbkrTradesHandler : "section_handlers['Trades']"
-    IbkrActivityReportParser o-- IbkrDividendsHandler : "section_handlers['Dividends']"
-    IbkrActivityReportParser o-- IbkrOtherSectionHandler : "section_handlers[...] (extensible)"
+    IbkrCsvParser o-- IbkrTradesHandler : "section_handlers['Trades']"
+    IbkrCsvParser o-- IbkrDividendsHandler : "section_handlers['Dividends']"
+    IbkrCsvParser o-- IbkrOpenPositionsHandler : "section_handlers['Open Positions']"
+    %% Add more handlers as needed for extensibility
 ```
 
 # Example Usage
 ```python
-from core.csv.ibkr import IbkrCsvParser, IbkrTradesHandler
+from core.csv.ibkr import IbkrCsvParser
 
-# Example section handler for the "Trades" section
-class IbkrTradesHandler:
-    def __init__(self):
-        self.trades = []
+# Parse an IBKR activity report CSV
+parser = IbkrCsvParser()
+parser.parse('ibkr_activity.csv')
 
-    def handle_row(self, row: dict):
-        # Example: map and normalize row fields
-        trade = {
-            'date': row['Date/Time'],
-            'symbol': row['Symbol'],
-            'quantity': float(row['Quantity']),
-            'price': float(row['T. Price']),
-            'proceeds': float(row['Proceeds']),
-        }
-        self.trades.append(trade)
+# Access normalized data
+for trade in parser.trades:
+    print(trade)
+for dividend in parser.dividends:
+    print(dividend)
+for position in parser.positions:
+    print(position)
 
-parser = IbkrCsvParser(section_handlers={
-    'Trades': IbkrTradesHandler(),
-    # Add other handlers as needed
-})
-activity = parser.parse('ibkr_activity.csv')
-# activity.trades, activity.dividends, ...
+# Or pretty print all sections
+parser.pretty_print()
 ```
 
 ## Key Features

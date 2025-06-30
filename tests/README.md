@@ -1,17 +1,27 @@
-# CSV Parser Test Data
+# Tests
 
-This directory contains synthetic CSV files for testing the base and specialized CSV parsers. 
+This folder contains test cases for the portfolio tracker modules, including the IBKR CSV parser and generic CSV parser tests.
 
-## Naming Convention
-- Use descriptive names reflecting the content and format:
-  - `simple.csv`: Minimal valid single-section CSV
-  - `multisection.csv`: Multi-section CSV with headers and data
-  - `malformed.csv`: CSV with missing fields, bad types, or malformed rows
-  - `edgecase.csv`: CSV with edge cases (empty, negative, zero, large values)
-  - `bad_row_length.csv`: CSV with rows that do not match header length (for row/header length validation)
+## Running tests
 
+You can run all tests with:
 
-## Coverage Goals
+```bash
+pytest
+```
+
+## Test data
+
+See `test_data/` for sample CSVs and other files used in tests.
+
+## IBKR CSV Parser Test Scenarios
+
+- Parsing trades, dividends, and open positions from a real IBKR CSV export.
+- Ensures that trades, dividends, and positions are parsed as lists of dictionaries.
+- Checks that at least one trade, one dividend, and one position are found in the sample file.
+- Verifies that the pretty print method outputs all three sections.
+
+## Generic CSV Parser Coverage Goals
 - Minimal valid files (smoke tests)
 - Multi-section files
 - Malformed files (missing fields, extra columns, bad types)
