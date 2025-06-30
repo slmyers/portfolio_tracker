@@ -1,7 +1,9 @@
 from dependency_injector import containers, providers
-from core.config.config import get_alpha_vantage_api_key, get_postgres_config, get_redis_config
+from core.config.config import get_alpha_vantage_api_key, get_postgres_config, get_redis_config, get_openai_api_key
 from core.persistence.postgres import PostgresPool
 from core.integrations import stock_api
+from core.integrations.llm.llm_agent import LLMAgent
+from core.integrations.llm.llm_prompt import load_llm_prompt
 
 from core.cache import MemoryCache
 from core.cache.redis import RedisCache
@@ -19,14 +21,24 @@ def stock_api_with_lock():
 
 # Integrations sub-container
 class IntegrationsContainer(containers.DeclarativeContainer):
+    openai_api_key = providers.Dependency()
     stock_api = providers.Factory(stock_api_with_lock)
+    llm_agent = providers.Singleton(
+        LLMAgent,
+        api_key=openai_api_key,
+        prompt=providers.Callable(load_llm_prompt),
+    )
 
 # Main DI container
 class Container(containers.DeclarativeContainer):
     config = providers.Singleton(get_alpha_vantage_api_key)
+    openai_api_key = providers.Singleton(get_openai_api_key)
     postgres_config = providers.Singleton(get_postgres_config)
     redis_config = providers.Singleton(get_redis_config)
-    integrations = providers.Container(IntegrationsContainer)
+    integrations = providers.Container(
+        IntegrationsContainer,
+        openai_api_key=openai_api_key,
+    )
     cache = providers.Singleton(MemoryCache)
     redis_cache = providers.Singleton(
         RedisCache,
