@@ -86,6 +86,7 @@ class IbkrCsvParser(BaseCSVParser):
         self,
         section_handlers: Optional[Dict[Optional[str], CsvSectionHandler]] = None,
         strict: bool = True,
+        logger=None,
     ):
         if section_handlers is None:
             section_handlers = {
@@ -98,6 +99,7 @@ class IbkrCsvParser(BaseCSVParser):
             strict=strict,
             section_header_detector=ibkr_section_header_detector,
         )
+        self.logger = logger
 
     @property
     def trades(self):
@@ -130,17 +132,19 @@ class IbkrCsvParser(BaseCSVParser):
             if row_type == 'Header':
                 header = row[2:]
                 normalized_header = [normalize_field(h) for h in header]
+                self.logger.debug(f"[IBKR DEBUG] Detected header in Trades: {header}")
                 continue
             if row_type == 'Data':
                 if not header:
+                    self.logger.warning("[IBKR WARNING] Data row encountered before header in Trades section.")
                     continue
-                # Skip summary/total rows (e.g., where the third column is 'Total', etc.)
-                # For trades, summary rows often have 'Total' or 'SubTotal' in the symbol or currency column
                 symbol_or_total = row[2].strip() if len(row) > 2 else ''
                 if symbol_or_total.lower().startswith('total') or symbol_or_total.lower().startswith('subtotal'):
+                    self.logger.debug(f"[IBKR DEBUG] Skipping summary row in Trades: {row}")
                     continue
                 data_row = row[2:]
                 if len(data_row) != len(header):
+                    self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in Trades: {data_row} vs {header}")
                     continue
                 data = dict(zip(normalized_header, data_row))
                 handler.handle_row(data)
@@ -160,16 +164,19 @@ class IbkrCsvParser(BaseCSVParser):
             if row_type == 'Header':
                 header = row[2:]
                 normalized_header = [normalize_field(h) for h in header]
+                self.logger.debug(f"[IBKR DEBUG] Detected header in Open Positions: {header}")
                 continue
             if row_type == 'Data':
                 if not header:
+                    self.logger.warning("[IBKR WARNING] Data row encountered before header in Open Positions section.")
                     continue
-                # Skip summary/total rows (e.g., where the third column is 'Total', etc.)
                 symbol_or_total = row[2].strip() if len(row) > 2 else ''
                 if symbol_or_total.lower().startswith('total') or symbol_or_total.lower().startswith('subtotal'):
+                    self.logger.debug(f"[IBKR DEBUG] Skipping summary row in Open Positions: {row}")
                     continue
                 data_row = row[2:]
                 if len(data_row) != len(header):
+                    self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in Open Positions: {data_row} vs {header}")
                     continue
                 data = dict(zip(normalized_header, data_row))
                 handler.handle_row(data)
@@ -186,12 +193,15 @@ class IbkrCsvParser(BaseCSVParser):
             if row_type == 'Header':
                 header = row[2:]
                 normalized_header = [normalize_field(h) for h in header]
+                self.logger.debug(f"[IBKR DEBUG] Detected header in generic section: {header}")
                 continue
             if row_type == 'Data':
                 if not header:
+                    self.logger.warning("[IBKR WARNING] Data row encountered before header in generic section.")
                     continue
                 data_row = row[2:]
                 if len(data_row) != len(header):
+                    self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in generic section: {data_row} vs {header}")
                     continue
                 data = dict(zip(normalized_header, data_row))
                 handler.handle_row(data)
@@ -211,16 +221,19 @@ class IbkrCsvParser(BaseCSVParser):
             if row_type == 'Header':
                 header = row[2:]
                 normalized_header = [normalize_field(h) for h in header]
+                self.logger.debug(f"[IBKR DEBUG] Detected header in Dividends: {header}")
                 continue
             if row_type == 'Data':
                 if not header:
+                    self.logger.warning("[IBKR WARNING] Data row encountered before header in Dividends section.")
                     continue
-                # Skip summary/total rows (e.g., where the third column is 'Total', 'Total in CAD', etc.)
                 currency_or_total = row[2].strip() if len(row) > 2 else ''
                 if currency_or_total.lower().startswith('total'):
+                    self.logger.debug(f"[IBKR DEBUG] Skipping summary row in Dividends: {row}")
                     continue
                 data_row = row[2:]
                 if len(data_row) != len(header):
+                    self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in Dividends: {data_row} vs {header}")
                     continue
                 data = dict(zip(normalized_header, data_row))
                 handler.handle_row(data)
@@ -233,29 +246,26 @@ class IbkrCsvParser(BaseCSVParser):
         if sections is None:
             sections = ['trades', 'dividends', 'positions']
         if 'trades' in sections:
-            print("=== Trades ===")
+            self.logger.info("=== Trades ===")
             if self.trades:
                 for t in self.trades:
-                    print(f"{t['datetime']} {t['symbol']} {t['quantity']} @ {t['t_price']} {t['currency']} | Proceeds: {t['proceeds']} | Comm: {t['commission']} | Realized P/L: {t['realized_pl']}")
+                    self.logger.info(f"{t['datetime']} {t['symbol']} {t['quantity']} @ {t['t_price']} {t['currency']} | Proceeds: {t['proceeds']} | Comm: {t['commission']} | Realized P/L: {t['realized_pl']}")
             else:
-                print("No trades found.")
-            print()
+                self.logger.info("No trades found.")
         if 'dividends' in sections:
-            print("=== Dividends ===")
+            self.logger.info("=== Dividends ===")
             if self.dividends:
                 for d in self.dividends:
-                    print(f"{d['date']} {d.get('description', '')} {d['amount']} {d['currency']}")
+                    self.logger.info(f"{d['date']} {d.get('description', '')} {d['amount']} {d['currency']}")
             else:
-                print("No dividends found.")
-            print()
+                self.logger.info("No dividends found.")
         if 'positions' in sections:
-            print("=== Open Positions ===")
+            self.logger.info("=== Open Positions ===")
             if self.positions:
                 for p in self.positions:
-                    print(f"{p['symbol']} {p['quantity']} {p['currency']} @ {p['cost_price']} (Cost Basis: {p['cost_basis']}) | Close: {p['close_price']} | Value: {p['value']} | UPL: {p['unrealized_pl']}")
+                    self.logger.info(f"{p['symbol']} {p['quantity']} {p['currency']} @ {p['cost_price']} (Cost Basis: {p['cost_basis']}) | Close: {p['close_price']} | Value: {p['value']} | UPL: {p['unrealized_pl']}")
             else:
-                print("No open positions found.")
-            print()
+                self.logger.info("No open positions found.")
 
     def parse(self, file_path: str):
         """
@@ -279,10 +289,10 @@ class IbkrCsvParser(BaseCSVParser):
             if section_name in self.section_handlers:
                 parse_method = getattr(self, f'_parse_section_{section_name.lower().replace(" ", "_")}', None)
                 if parse_method:
-                    print(f"[IBKR DEBUG] Using custom parser for section '{section_name}'")
+                    self.logger.debug(f"[IBKR DEBUG] Using custom parser for section '{section_name}'")
                     parse_method(reader[start:end], self.section_handlers[section_name])
                 else:
-                    print(f"[IBKR DEBUG] Using generic parser for section '{section_name}'")
+                    self.logger.debug(f"[IBKR DEBUG] Using generic parser for section '{section_name}'")
                     self._parse_section_generic(reader[start:end], self.section_handlers[section_name])
         if self.errors and self.strict:
             raise RuntimeError(f"Parsing failed with errors: {self.errors}")
