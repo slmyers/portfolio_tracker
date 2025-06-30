@@ -75,7 +75,7 @@ flowchart TD
 ## Example Terraform Directory Layout
 
 ```
-infra/
+infrastructure/
   environments/
     local/
       main.tf
@@ -130,8 +130,8 @@ Always use separate Terraform state files for local and AWS environments. Each e
 You cannot use a single Terraform resource block for both local (Docker) and AWS (RDS) Postgres, as they are different resource types and providers. However, you can structure your Terraform code to select which environment to deploy by:
 
 ### 1. Separate Environments/Directories (Recommended)
-- `infra/environments/local/` contains Docker resources.
-- `infra/environments/aws/` contains AWS resources.
+- `infrastructure/environments/local/` contains Docker resources.
+- `infrastructure/environments/aws/` contains AWS resources.
 - You run `terraform apply` in the directory for the environment you want.
 
 ### 2. Modules with Conditional Logic (Advanced)
@@ -165,7 +165,7 @@ Terraform workspaces can help keep state separate for local and AWS, but you sti
 This approach is common in IaC: you define all possible resources, but only the relevant ones are created based on your environment selection.
 
 ## Next Steps
-- Start with a minimal `infra/` directory using Terraform and the Docker provider
+- Start with a minimal `infrastructure/` directory using Terraform and the Docker provider
 - Add modules/resources for Redis, Postgres, and a vector store
 - Document usage: `terraform init`, `terraform apply`, and teardown
 - Optionally, add cloud modules for future migration

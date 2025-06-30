@@ -5,4 +5,5 @@
 
 export TF_VAR_docker_host="unix:///var/run/docker.sock"
 cd "$(dirname "$0")"
+terraform init
 terraform apply
