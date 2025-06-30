@@ -181,31 +181,6 @@ class IbkrCsvParser(BaseCSVParser):
                 data = dict(zip(normalized_header, data_row))
                 handler.handle_row(data)
 
-    def _parse_section_generic(self, rows, handler):
-        def normalize_field(field):
-            return field.strip().lower().replace(' ', '_').replace('/', '_')
-        header = None
-        normalized_header = None
-        for row_num, row in enumerate(rows):
-            if not any(cell.strip() for cell in row):
-                continue
-            row_type = row[1].strip() if len(row) > 1 else None
-            if row_type == 'Header':
-                header = row[2:]
-                normalized_header = [normalize_field(h) for h in header]
-                self.logger.debug(f"[IBKR DEBUG] Detected header in generic section: {header}")
-                continue
-            if row_type == 'Data':
-                if not header:
-                    self.logger.warning("[IBKR WARNING] Data row encountered before header in generic section.")
-                    continue
-                data_row = row[2:]
-                if len(data_row) != len(header):
-                    self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in generic section: {data_row} vs {header}")
-                    continue
-                data = dict(zip(normalized_header, data_row))
-                handler.handle_row(data)
-
     def _parse_section_dividends(self, rows, handler):
         """
         Custom parser for Dividends section to skip summary/total rows and handle currency changes.
