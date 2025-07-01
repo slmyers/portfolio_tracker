@@ -3,7 +3,9 @@ from core.config.config import get_alpha_vantage_api_key, get_postgres_config, g
 from core.persistence.postgres import PostgresPool
 from core.integrations import stock_api
 from core.integrations.llm.llm_agent import LLMAgent
-from core.integrations.llm.llm_prompt import load_llm_prompt
+from langchain_openai import ChatOpenAI
+from core.integrations.llm.grok_llm import GrokLLM
+from core.config.x_config import get_x_api_key
 
 from core.cache import MemoryCache
 from core.cache.redis import RedisCache
@@ -22,10 +24,23 @@ def stock_api_with_lock():
 # Integrations sub-container
 class IntegrationsContainer(containers.DeclarativeContainer):
     openai_api_key = providers.Dependency()
+    x_api_key = providers.Singleton(get_x_api_key)
     stock_api = providers.Factory(stock_api_with_lock)
+    llm = providers.Singleton(
+        ChatOpenAI,
+        openai_api_key=openai_api_key,
+    )
+    grok_llm = providers.Singleton(
+        GrokLLM,
+        api_key=x_api_key,
+    )
     llm_agent = providers.Singleton(
         LLMAgent,
-        api_key=openai_api_key,
+        llm=llm,
+    )
+    llm_agent_grok = providers.Singleton(
+        LLMAgent,
+        llm=grok_llm,
     )
 
 # Main DI container

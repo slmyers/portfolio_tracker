@@ -17,7 +17,8 @@ def parse_ibkr_positions(csv_path, logger):
 def main():
     # Set up DI container
     container = Container()
-    llm_agent = container.integrations().llm_agent()
+    llm_agent_openai = container.integrations().llm_agent()
+    llm_agent_grok = container.integrations().llm_agent_grok()
     logger = container.logger()
 
     # Parse IBKR positions
@@ -27,9 +28,13 @@ def main():
         print("No positions found in the IBKR CSV.")
         return
 
-    # Use the new LangGraph-based LLM agent
-    response = llm_agent.summarize_positions(positions)
-    print("LLM Response:\n", response)
+    # Test OpenAI LLM agent
+    response_openai = llm_agent_openai.summarize_positions(positions)
+    print("OpenAI LLM Response:\n", response_openai)
+
+    # Test Grok LLM agent
+    response_grok = llm_agent_grok.summarize_positions(positions)
+    print("Grok LLM Response:\n", response_grok)
 
 if __name__ == "__main__":
     main()

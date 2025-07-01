@@ -8,9 +8,13 @@ class LLMState(TypedDict):
     positions: List[dict]
     llm_response: str
 
+
 class LLMAgent(LLMClient):
-    def __init__(self, api_key: str):
-        self.llm = ChatOpenAI(openai_api_key=api_key)
+    def __init__(self, llm):
+        """
+        llm: Any object with an .invoke(prompt) method (e.g., ChatOpenAI, Anthropic, etc.)
+        """
+        self.llm = llm
         self.graph = self._build_graph()
 
     def _build_graph(self):
