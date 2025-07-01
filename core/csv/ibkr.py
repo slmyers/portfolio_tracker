@@ -322,9 +322,3 @@ class IbkrCsvParser(BaseCSVParser):
                     continue
                 data = dict(zip(normalized_header, data_row))
                 handler.handle_row(data)
-
-        """
-        Custom parser for Dividends section to skip summary/total rows and handle currency changes.
-        """
-        def normalize_field(field):
-            return field.strip().lower().replace(' ', '_').replace('/', '_')

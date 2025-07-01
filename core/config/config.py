@@ -2,6 +2,7 @@ from .load_env import load_env
 import os
 from typing import Optional
 from dataclasses import dataclass
+
 @dataclass(frozen=True)
 class PostgresConfig:
     host: str
@@ -56,3 +57,14 @@ def get_log_level(env_path: str = '.env') -> str:
     """
     load_env(env_path)
     return os.environ.get('LOG_LEVEL', 'INFO').upper()
+
+
+def get_openai_api_key(env_path: str = '.env') -> str:
+    """
+    Loads the .env file and returns the OpenAI API key.
+    """
+    load_env(env_path)
+    api_key: Optional[str] = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        raise ValueError("OpenAI API key not found in environment variables.")
+    return api_key
