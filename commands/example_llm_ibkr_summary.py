@@ -23,22 +23,12 @@ def main():
     # Parse IBKR positions
     positions = parse_ibkr_positions(IBKR_CSV_PATH, logger)
 
-    # Format positions for LLM
     if not positions:
         print("No positions found in the IBKR CSV.")
         return
-    positions_str = "\n".join(str(position) for position in positions)
 
-    # Compose prompt with positions data
-    prompt = f"""
-Below are my Interactive Brokers positions from my portfolio activity report. Please summarize my positions and provide feedback.
-
-Positions:
-{positions_str}
-"""
-
-    # Send to LLM agent
-    response = llm_agent.generate_text(prompt)
+    # Use the new LangGraph-based LLM agent
+    response = llm_agent.summarize_positions(positions)
     print("LLM Response:\n", response)
 
 if __name__ == "__main__":

@@ -1,6 +1,3 @@
-from langchain.tools import tool
-
-@tool
-def generic_tool():
-    """A generic tool for demonstration purposes."""
-    return "This is a generic tool."
+def summarize_positions_tool(positions: list) -> str:
+    """Format or summarize positions for the LLM."""
+    return "\n".join(str(position) for position in positions)

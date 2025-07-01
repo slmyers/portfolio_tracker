@@ -26,7 +26,6 @@ class IntegrationsContainer(containers.DeclarativeContainer):
     llm_agent = providers.Singleton(
         LLMAgent,
         api_key=openai_api_key,
-        prompt=providers.Callable(load_llm_prompt),
     )
 
 # Main DI container

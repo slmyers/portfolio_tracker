@@ -49,59 +49,73 @@ classDiagram
 
 ## Key Components
 
+
 ### llm_interface.py
 
-Defines the abstract base class for LLM clients/agents.
+Defines the abstract base class for LLM clients/agents, now focused on LangGraph workflows.
 
 ```python
 from abc import ABC, abstractmethod
 
 class LLMClient(ABC):
     @abstractmethod
-    def generate_text(self, prompt: str, **kwargs) -> str:
+    def summarize_positions(self, positions: list) -> str:
         pass
 ```
 
 ---
 
+
 ### llm_tools.py
 
-Defines and registers generic, reusable LLM tools. No domain logic should be included here.
+Defines generic, reusable LLM tools as plain Python functions for use in LangGraph workflows.
 
 ```python
-from langchain.tools import tool
-
-@tool
-def generic_tool():
-    """A generic tool for demonstration purposes."""
-    return "This is a generic tool."
+def summarize_positions_tool(positions: list) -> str:
+    """Format or summarize positions for the LLM."""
+    return "\n".join(str(position) for position in positions)
 ```
 
 ---
 
+
 ### llm_agent.py
 
-Minimal agent setup and tool integration. Uses the interface and tools defined above.
+Defines the LLM agent using LangGraph for stateful, multi-step workflows.
 
 ```python
+from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
-from langchain.agents import initialize_agent, AgentType
-from .llm_tools import generic_tool
+from .llm_tools import summarize_positions_tool
 from .llm_interface import LLMClient
 
 class LLMAgent(LLMClient):
-    def __init__(self, api_key: str, prompt: str):
+    def __init__(self, api_key: str):
         self.llm = ChatOpenAI(openai_api_key=api_key)
-        self.agent = initialize_agent(
-            [generic_tool],
-            self.llm,
-            agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-            verbose=True,
-            prompt=prompt,
-        )
+        self.graph = self._build_graph()
 
-    def generate_text(self, prompt: str, **kwargs) -> str:
-        return self.agent.run(prompt)
+    def _build_graph(self):
+        def llm_summary_node(state):
+            positions = state["positions"]
+            summary_input = summarize_positions_tool(positions)
+            prompt = f"""
+Below are my Interactive Brokers positions from my portfolio activity report. Please summarize my positions and provide feedback.
+
+Positions:
+{summary_input}
+"""
+            response = self.llm.invoke(prompt)
+            return {"llm_response": response.content if hasattr(response, "content") else str(response)}
+
+        graph = StateGraph()
+        graph.add_node("summarize", llm_summary_node)
+        graph.set_entry_point("summarize")
+        graph.add_edge("summarize", END)
+        return graph.compile()
+
+    def summarize_positions(self, positions: list) -> str:
+        result = self.graph.invoke({"positions": positions})
+        return result["llm_response"]
 ```
 
 ---
@@ -155,5 +169,12 @@ pip install langchain langchain-openai openai
 - Dependency injection and separation of concerns are strictly followed.
 
 ---
+
+
+## Migration to LangGraph
+
+All core LLM agent and tool orchestration is now implemented using LangGraph. This provides a more flexible, maintainable, and stateful workflow engine for LLM-powered applications, supporting multi-step reasoning, tool use, and complex branching logic.
+
+> For more details, see the [LangGraph documentation](https://python.langchain.com/docs/langgraph/).
 
 Update this document as the LLM agent module evolves.
