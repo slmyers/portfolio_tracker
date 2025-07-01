@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, END
-from langchain_openai import ChatOpenAI
 from .llm_tools import summarize_positions_tool
+from .llm_prompt import load_llm_prompt
 from .llm_interface import LLMClient
 from typing import TypedDict, List
 
@@ -18,15 +18,11 @@ class LLMAgent(LLMClient):
         self.graph = self._build_graph()
 
     def _build_graph(self):
+        llm_prompt = load_llm_prompt()
         def llm_summary_node(state):
             positions = state["positions"]
             summary_input = summarize_positions_tool(positions)
-            prompt = f"""
-Below are my Interactive Brokers positions from my portfolio activity report. Please summarize my positions and provide feedback.
-
-Positions:
-{summary_input}
-"""
+            prompt = llm_prompt.format(positions=summary_input)
             response = self.llm.invoke(prompt)
             return {"llm_response": response.content if hasattr(response, "content") else str(response)}
 

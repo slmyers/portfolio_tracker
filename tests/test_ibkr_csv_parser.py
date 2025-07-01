@@ -1,9 +1,9 @@
 import os
 from core.csv.ibkr import IbkrCsvParser
+import logging
 
 TEST_CSV_PATH = os.path.join(os.path.dirname(__file__), "../ibkr_year_to_date.csv")
 
-import logging
 
 class ListLogger(logging.Logger):
     def __init__(self, *args, **kwargs):
