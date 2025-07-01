@@ -2,6 +2,7 @@ from .load_env import load_env
 import os
 from typing import Optional
 from dataclasses import dataclass
+
 @dataclass(frozen=True)
 class PostgresConfig:
     host: str
