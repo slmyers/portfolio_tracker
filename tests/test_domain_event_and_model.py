@@ -27,6 +27,3 @@ class DomainModelTestCase(unittest.TestCase):
         # Can add metadata
         event.metadata['key'] = 'value'
         self.assertEqual(event.metadata['key'], 'value')
-
-if __name__ == "__main__":
-    unittest.main()
