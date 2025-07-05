@@ -1,7 +1,7 @@
 from uuid import UUID
 from datetime import datetime
 from core.domain_model import DomainModel
-from .events import TenantDeactivated, TenantCreated, TenantNameChanged
+from .tenant_events import TenantDeactivated, TenantCreated, TenantNameChanged
 from typing import Optional
 
 class TenantName:

@@ -2,7 +2,8 @@ import unittest
 from uuid import uuid4
 from datetime import datetime
 from domain.user.user import User, Email, PasswordHash, Role
-from domain.user.events import UserAdded, UserRemoved, UserRoleChanged
+from domain.user.user_events import UserAdded, UserRemoved, UserRoleChanged
+from passlib.context import CryptContext
 
 class UserDomainTestCase(unittest.TestCase):
     def setUp(self):
@@ -20,6 +21,22 @@ class UserDomainTestCase(unittest.TestCase):
             password_hash=self.password_hash,
             role=self.role
         )
+
+    def test_password_hash_create_and_verify(self):
+        pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+        password = "supersecret"
+        hash_obj = PasswordHash.create(password, pwd_context)
+        self.assertTrue(hash_obj.verify(password, pwd_context))
+        self.assertFalse(hash_obj.verify("wrongpassword", pwd_context))
+
+    def test_password_hash_direct_init_and_verify(self):
+        pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+        password = "anothersecret"
+        hash_obj = PasswordHash.create(password, pwd_context)
+        # Simulate loading from DB
+        loaded_hash = PasswordHash(hash_obj.hashed)
+        self.assertTrue(loaded_hash.verify(password, pwd_context))
+        self.assertFalse(loaded_hash.verify("bad", pwd_context))
 
     def test_user_added_event(self):
         events = self.user.pull_events()

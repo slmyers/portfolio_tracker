@@ -1,7 +1,7 @@
 from uuid import UUID
 from datetime import datetime
 from core.domain_model import DomainModel
-from .events import UserAdded, UserRemoved, UserRoleChanged
+from .user_events import UserAdded, UserRemoved, UserRoleChanged
 from typing import Optional
 import re
 

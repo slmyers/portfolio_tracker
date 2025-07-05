@@ -3,8 +3,6 @@ from datetime import datetime
 from uuid import UUID
 from core.domain_event import DomainEvent
 
-# No tenant events are currently used, but stubs are provided for future extensibility.
-
 @dataclass(kw_only=True)
 class TenantCreated(DomainEvent):
     tenant_id: UUID

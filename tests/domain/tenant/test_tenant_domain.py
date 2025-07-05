@@ -2,7 +2,7 @@ import unittest
 from uuid import uuid4
 from datetime import datetime
 from domain.tenant.tenant import Tenant, TenantName
-from domain.tenant.events import TenantDeactivated, TenantCreated, TenantNameChanged
+from domain.tenant.tenant_events import TenantDeactivated, TenantCreated, TenantNameChanged
 
 class TenantDomainTestCase(unittest.TestCase):
     def setUp(self):
