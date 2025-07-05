@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-@dataclass
+@dataclass(kw_only=True)
 class DomainEvent:
     """
     Base class for all domain events. Inherit from this class to define specific events.
