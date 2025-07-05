@@ -1,0 +1,42 @@
+import unittest
+from uuid import uuid4
+from datetime import datetime
+from domain.user.user import User, Email, PasswordHash, Role
+from domain.user.events import UserAdded, UserRemoved, UserRoleChanged
+
+class UserDomainTestCase(unittest.TestCase):
+    def setUp(self):
+        self.user_id = uuid4()
+        self.tenant_id = uuid4()
+        self.email = Email("user@example.com")
+        self.name = "Test User"
+        self.password_hash = PasswordHash("hashedpw")
+        self.role = Role("user")
+        self.user = User(
+            id=self.user_id,
+            tenant_id=self.tenant_id,
+            email=self.email,
+            name=self.name,
+            password_hash=self.password_hash,
+            role=self.role
+        )
+
+    def test_user_added_event(self):
+        events = self.user.pull_events()
+        self.assertTrue(any(isinstance(e, UserAdded) for e in events))
+
+    def test_deactivate_records_event(self):
+        self.user.deactivate()
+        events = self.user.pull_events()
+        self.assertTrue(any(isinstance(e, UserRemoved) for e in events))
+        self.assertFalse(self.user.is_active)
+
+    def test_change_role_records_event(self):
+        new_role = Role("admin")
+        self.user.change_role(new_role, changed_by="admin_id")
+        events = self.user.pull_events()
+        self.assertTrue(any(isinstance(e, UserRoleChanged) for e in events))
+        self.assertEqual(str(self.user.role), "admin")
+
+if __name__ == "__main__":
+    unittest.main()

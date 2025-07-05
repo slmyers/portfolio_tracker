@@ -1,0 +1,8 @@
+Section1,Header,ColA,ColB
+ColA,ColB
+foo,1
+bar,2
+Section2,Header,ColX,ColY
+ColX,ColY
+baz,3
+qux,4
