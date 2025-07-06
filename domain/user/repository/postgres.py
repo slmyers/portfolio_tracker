@@ -9,8 +9,22 @@ class PostgresUserRepository(UserRepository):
     def __init__(self, db):
         self.db = db  # db should be a connection/session object or pool
 
+    def _hydrate_user(self, id: UUID, tenant_id: UUID, email: Email, name: str, password_hash: PasswordHash, role: Role, is_active: bool, created_at: datetime, updated_at: datetime) -> User:
+        # Create a User object without triggering events
+        user = User.__new__(User)  # Bypass the constructor
+        user.id = id
+        user.tenant_id = tenant_id
+        user.email = email
+        user.name = name
+        user.password_hash = password_hash
+        user.role = role
+        user.is_active = is_active
+        user.created_at = created_at
+        user.updated_at = updated_at
+        return user
+
     def _row_to_user(self, row) -> User:
-        return User(
+        return self._hydrate_user(
             id=UUID(row["id"]) if not isinstance(row["id"], UUID) else row["id"],
             tenant_id=UUID(row["tenant_id"]) if not isinstance(row["tenant_id"], UUID) else row["tenant_id"],
             email=Email(row["email"]),
