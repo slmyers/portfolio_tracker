@@ -14,7 +14,17 @@ This document defines the User domain for the Portfolio Tracker application, fol
 - `email: Email`  # Value Object
 - `name: str`
 - `password_hash: PasswordHash`  # Value Object
-- `role: Role`  # Value Object (e.g., 'user', 'admin')
+- `role: Role`  # Value Object (see below for valid roles)
+
+#### Valid Roles
+The `Role` value object supports the following valid roles (must match both code and database enum):
+
+- `user`
+- `admin`
+- `system`
+- `super_admin`
+- `auditor`
+
 - `is_active: bool`  # Indicates soft deletion/deactivation. When False, the user is considered deactivated but not physically removed from the database.
 - `created_at: datetime`
 - `updated_at: datetime`
@@ -67,12 +77,12 @@ class PasswordHash:
 ```
 
 ### Role (Value Object)
-Restricts role values to a known set (e.g., 'user', 'admin') and enforces invariants.
+Restricts role values to a known set and enforces invariants.
 
 **Example (Python, conceptual):**
 ```python
 class Role:
-    VALID_ROLES = {"user", "admin"}
+    VALID_ROLES = {"user", "admin", "system", "super_admin", "auditor"}
     def __init__(self, value: str):
         value = value.lower()
         if value not in self.VALID_ROLES:
