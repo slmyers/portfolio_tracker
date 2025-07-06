@@ -1,6 +1,5 @@
 import unittest
 from uuid import uuid4
-from datetime import datetime
 from domain.tenant.tenant import Tenant, TenantName
 from domain.tenant.tenant_events import TenantDeactivated, TenantCreated, TenantNameChanged
 

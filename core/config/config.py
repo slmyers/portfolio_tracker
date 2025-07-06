@@ -30,6 +30,32 @@ def get_postgres_config(env_path: str = '.env') -> PostgresConfig:
         db=os.environ.get('POSTGRES_DB', 'portfolio'),
     )
 
+def get_test_postgres_config(env_path: str = '.env') -> PostgresConfig:
+    """
+    Loads the .env file and returns a PostgresConfig object for the test database (db name is test_portfolio).
+    """
+    load_env(env_path)
+    return PostgresConfig(
+        host=os.environ.get('POSTGRES_HOST', 'localhost'),
+        port=int(os.environ.get('POSTGRES_PORT', 5432)),
+        user=os.environ.get('POSTGRES_USER', 'postgres'),
+        password=os.environ.get('POSTGRES_PASSWORD', 'postgres'),
+        db='test_portfolio',
+    )
+
+def get_database_url(env_path: str = '.env') -> str:
+    """
+    Loads the .env file and returns the database URL.
+    If TEST_ENV is set to 'true' (case-insensitive) in the environment, use the test database name.
+    """
+    load_env(env_path)
+    postgres_config = get_postgres_config(env_path)
+    use_test_db = os.environ.get('TEST_ENV', '').lower() == 'true'
+    db_name = 'test_portfolio' if use_test_db else 'portfolio'
+    return f"postgresql+psycopg2://{postgres_config.user}:{postgres_config.password}@{postgres_config.host}:{postgres_config.port}/{db_name}"
+
+
+
 def get_redis_config(env_path: str = '.env') -> RedisConfig:
     """
     Loads the .env file and returns a RedisConfig object.

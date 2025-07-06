@@ -1,6 +1,5 @@
 import unittest
 from uuid import uuid4
-from datetime import datetime
 from domain.user.user import User, Email, PasswordHash, Role
 from domain.user.user_events import UserAdded, UserRemoved, UserRoleChanged
 from passlib.context import CryptContext

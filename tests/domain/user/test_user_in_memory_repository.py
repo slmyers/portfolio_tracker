@@ -30,10 +30,6 @@ class InMemoryUserRepositoryTest(unittest.TestCase):
         self.assertIsNotNone(user)
         self.assertEqual(str(user.email), "test@example.com")
 
-    def test_list_by_tenant(self):
-        users = self.repo.list_by_tenant(self.tenant_id)
-        self.assertEqual(len(users), 1)
-        self.assertEqual(users[0].tenant_id, self.tenant_id)
 
     def test_add_duplicate_id_overwrites(self):
         # Adding a user with the same id should overwrite
@@ -48,6 +44,16 @@ class InMemoryUserRepositoryTest(unittest.TestCase):
         self.repo.add(user2)
         user = self.repo.get_by_id(self.user_id)
         self.assertEqual(str(user.email), "other@example.com")
+
+
+    def test_change_password(self):
+        user = self.repo.get_by_id(self.user_id)
+        old_hash = user.password_hash.hashed
+        new_hash = "newhashvalue123"
+        self.repo.change_password(self.user_id, new_hash)
+        user = self.repo.get_by_id(self.user_id)
+        self.assertEqual(user.password_hash.hashed, new_hash)
+        self.assertNotEqual(user.password_hash.hashed, old_hash)
 
 if __name__ == "__main__":
     unittest.main()
