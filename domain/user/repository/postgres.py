@@ -37,11 +37,11 @@ class PostgresUserRepository(UserRepository):
         )
 
     def get_by_id(self, user_id: UUID, conn=None) -> Optional[User]:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
+            
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -53,15 +53,15 @@ class PostgresUserRepository(UserRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return self._row_to_user(dict(zip(colnames, row)))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def get_by_email(self, email: str, conn=None) -> Optional[User]:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
+            
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -73,15 +73,15 @@ class PostgresUserRepository(UserRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return self._row_to_user(dict(zip(colnames, row)))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def add(self, user: User, conn=None) -> None:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
+            
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -100,18 +100,18 @@ class PostgresUserRepository(UserRepository):
                     user.created_at,
                     user.updated_at
                 ))
-                if should_close:
+                if conn_ctx is not None:
                     conn.commit()
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def list_by_tenant(self, tenant_id: UUID, conn=None) -> List[User]:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
+            
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -121,22 +121,22 @@ class PostgresUserRepository(UserRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return [self._row_to_user(dict(zip(colnames, row))) for row in rows]
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def change_password(self, user_id: UUID, new_password_hash: str, conn=None) -> None:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
+            
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     UPDATE users SET password_hash = %s, updated_at = %s WHERE id = %s
                 """, (new_password_hash, datetime.utcnow(), str(user_id)))
-                if should_close:
+                if conn_ctx is not None:
                     conn.commit()
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
