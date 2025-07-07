@@ -27,7 +27,7 @@ def get_postgres_config(env_path: str = '.env') -> PostgresConfig:
         port=int(os.environ.get('POSTGRES_PORT', 5432)),
         user=os.environ.get('POSTGRES_USER', 'postgres'),
         password=os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-        db=os.environ.get('POSTGRES_DB', 'portfolio'),
+        db=os.environ.get('POSTGRES_DB', 'portfolio_db'),
     )
 
 def get_test_postgres_config(env_path: str = '.env') -> PostgresConfig:
@@ -40,7 +40,7 @@ def get_test_postgres_config(env_path: str = '.env') -> PostgresConfig:
         port=int(os.environ.get('POSTGRES_PORT', 5432)),
         user=os.environ.get('POSTGRES_USER', 'postgres'),
         password=os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-        db='test_portfolio',
+        db='test_portfolio_db',
     )
 
 def get_database_url(env_path: str = '.env') -> str:
@@ -51,7 +51,7 @@ def get_database_url(env_path: str = '.env') -> str:
     load_env(env_path)
     postgres_config = get_postgres_config(env_path)
     use_test_db = os.environ.get('TEST_ENV', '').lower() == 'true'
-    db_name = 'test_portfolio' if use_test_db else 'portfolio'
+    db_name = 'test_portfolio_db' if use_test_db else 'portfolio_db'
     return f"postgresql+psycopg2://{postgres_config.user}:{postgres_config.password}@{postgres_config.host}:{postgres_config.port}/{db_name}"
 
 
