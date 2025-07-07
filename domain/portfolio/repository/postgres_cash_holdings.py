@@ -42,11 +42,10 @@ class PostgresCashHoldingRepository(CashHoldingRepository):
 
     def find_by_portfolio_id(self, portfolio_id: UUID, *, limit: int = 100, offset: int = 0, conn=None) -> List[CashHolding]:
         """Find all cash holdings for a portfolio."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -59,16 +58,15 @@ class PostgresCashHoldingRepository(CashHoldingRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return [self._row_to_cash_holding(dict(zip(colnames, row))) for row in rows]
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def get(self, holding_id: UUID, conn=None) -> Optional[CashHolding]:
         """Get a cash holding by ID."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -80,16 +78,15 @@ class PostgresCashHoldingRepository(CashHoldingRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return self._row_to_cash_holding(dict(zip(colnames, row)))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def find_by_portfolio_and_currency(self, portfolio_id: UUID, currency: str, conn=None) -> Optional[CashHolding]:
         """Find a cash holding by portfolio and currency."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -102,16 +99,15 @@ class PostgresCashHoldingRepository(CashHoldingRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return self._row_to_cash_holding(dict(zip(colnames, row)))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def save(self, cash_holding: CashHolding, conn=None) -> None:
         """Save a cash holding."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -129,23 +125,22 @@ class PostgresCashHoldingRepository(CashHoldingRepository):
                     cash_holding.updated_at
                 ))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def delete(self, holding_id: UUID, conn=None) -> None:
         """Delete a cash holding."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     DELETE FROM cash_holding WHERE id = %s
                 """, (str(holding_id),))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def batch_save(self, holdings: List[CashHolding], conn=None) -> None:
@@ -155,11 +150,10 @@ class PostgresCashHoldingRepository(CashHoldingRepository):
 
     def exists(self, holding_id: UUID, conn=None) -> bool:
         """Check if a cash holding exists."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -167,5 +161,5 @@ class PostgresCashHoldingRepository(CashHoldingRepository):
                 """, (str(holding_id),))
                 return cur.fetchone() is not None
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)

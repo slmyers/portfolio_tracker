@@ -56,11 +56,10 @@ class PostgresActivityReportEntryRepository(ActivityReportEntryRepository):
 
     def find_by_portfolio_id(self, portfolio_id: UUID, *, limit: int = 100, offset: int = 0, 
                            activity_type: Optional[str] = None, conn=None) -> List[ActivityReportEntry]:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 if activity_type:
@@ -81,15 +80,15 @@ class PostgresActivityReportEntryRepository(ActivityReportEntryRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return [self._row_to_entry(dict(zip(colnames, row))) for row in rows]
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def get(self, entry_id: UUID, conn=None) -> Optional[ActivityReportEntry]:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
+            
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -101,15 +100,15 @@ class PostgresActivityReportEntryRepository(ActivityReportEntryRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return self._row_to_entry(dict(zip(colnames, row)))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def save(self, entry: ActivityReportEntry, conn=None) -> None:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
+            
         try:
             with conn.cursor() as cur:
                 # Serialize raw_data to JSON string - always serialize, even if empty dict
@@ -136,22 +135,22 @@ class PostgresActivityReportEntryRepository(ActivityReportEntryRepository):
                     entry.created_at
                 ))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def delete(self, entry_id: UUID, conn=None) -> None:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
+            
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     DELETE FROM activity_report_entry WHERE id = %s
                 """, (str(entry_id),))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def batch_save(self, entries: List[ActivityReportEntry], conn=None) -> None:
@@ -161,11 +160,11 @@ class PostgresActivityReportEntryRepository(ActivityReportEntryRepository):
 
     def exists(self, entry_id: UUID, conn=None) -> bool:
         """Check if an activity report entry exists."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
+            
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -173,16 +172,16 @@ class PostgresActivityReportEntryRepository(ActivityReportEntryRepository):
                 """, (str(entry_id),))
                 return cur.fetchone() is not None
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def find_by_date_range(self, portfolio_id: UUID, start_date: str, end_date: str, conn=None) -> List[ActivityReportEntry]:
         """Find activity report entries within a date range."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
+            
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -194,5 +193,5 @@ class PostgresActivityReportEntryRepository(ActivityReportEntryRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return [self._row_to_entry(dict(zip(colnames, row))) for row in rows]
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)

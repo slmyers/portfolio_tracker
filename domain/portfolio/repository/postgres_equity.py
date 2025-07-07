@@ -39,11 +39,10 @@ class PostgresEquityRepository(EquityRepository):
 
     def get(self, equity_id: UUID, conn=None) -> Optional[Equity]:
         """Get an equity by ID."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -55,16 +54,15 @@ class PostgresEquityRepository(EquityRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return self._row_to_equity(dict(zip(colnames, row)))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def find_by_symbol(self, symbol: str, exchange: str, conn=None) -> Optional[Equity]:
         """Find an equity by symbol and exchange."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -76,16 +74,15 @@ class PostgresEquityRepository(EquityRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return self._row_to_equity(dict(zip(colnames, row)))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def find_by_portfolio_id(self, portfolio_id: UUID, conn=None) -> List[Equity]:
         """Find all equities associated with a portfolio."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -97,16 +94,15 @@ class PostgresEquityRepository(EquityRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return [self._row_to_equity(dict(zip(colnames, row))) for row in rows]
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def search(self, query: str, limit: int = 50, conn=None) -> List[Equity]:
         """Search for equities by symbol or name."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -119,16 +115,15 @@ class PostgresEquityRepository(EquityRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return [self._row_to_equity(dict(zip(colnames, row))) for row in rows]
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def save(self, equity: Equity, conn=None) -> None:
         """Save an equity."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 # Check if equity already exists
@@ -160,32 +155,30 @@ class PostgresEquityRepository(EquityRepository):
                         equity.created_at
                     ))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def delete(self, equity_id: UUID, conn=None) -> None:
         """Delete an equity."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     DELETE FROM equity WHERE id = %s
                 """, (str(equity_id),))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def exists(self, equity_id: UUID, conn=None) -> bool:
         """Check if an equity exists."""
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -193,5 +186,5 @@ class PostgresEquityRepository(EquityRepository):
                 """, (str(equity_id),))
                 return cur.fetchone() is not None
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)

@@ -18,11 +18,10 @@ class PostgresTenantRepository(TenantRepository):
         )
 
     def get_by_id(self, tenant_id: UUID, conn=None) -> Optional[Tenant]:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT * FROM tenants WHERE id = %s", (str(tenant_id),))
@@ -32,15 +31,14 @@ class PostgresTenantRepository(TenantRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return self._row_to_tenant(dict(zip(colnames, row)))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def add(self, tenant: Tenant, conn=None) -> None:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute(
@@ -57,18 +55,18 @@ class PostgresTenantRepository(TenantRepository):
                         tenant.updated_at
                     )
                 )
-                if should_close:
+                # Only commit if we created our own connection
+                if conn_ctx is not None:
                     conn.commit()
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def list_all(self, conn=None) -> List[Tenant]:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT * FROM tenants")
@@ -76,5 +74,5 @@ class PostgresTenantRepository(TenantRepository):
                 colnames = [desc[0] for desc in cur.description]
                 return [self._row_to_tenant(dict(zip(colnames, row))) for row in rows]
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)

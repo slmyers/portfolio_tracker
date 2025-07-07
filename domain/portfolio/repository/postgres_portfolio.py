@@ -39,11 +39,10 @@ class PostgresPortfolioRepository:
         )
 
     def get(self, portfolio_id: UUID, conn=None) -> Optional[Portfolio]:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -67,15 +66,14 @@ class PostgresPortfolioRepository:
                 
                 return portfolio
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def find_by_tenant_id(self, tenant_id: UUID, conn=None) -> List[Portfolio]:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -95,15 +93,14 @@ class PostgresPortfolioRepository:
                     portfolios.append(portfolio)
                 return portfolios
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def save(self, portfolio: Portfolio, conn=None) -> None:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 # Insert or update portfolio
@@ -137,15 +134,14 @@ class PostgresPortfolioRepository:
                         portfolio.updated_at
                     ))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def delete(self, portfolio_id: UUID, conn=None) -> None:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 # Delete will cascade to related tables
@@ -153,15 +149,14 @@ class PostgresPortfolioRepository:
                     DELETE FROM portfolio WHERE id = %s
                 """, (str(portfolio_id),))
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def find_by_name(self, tenant_id: UUID, name: str, conn=None) -> Optional[Portfolio]:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -180,15 +175,14 @@ class PostgresPortfolioRepository:
                 portfolio.cash_balance = Decimal(str(row_dict['total_cash']))
                 return portfolio
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
 
     def exists(self, portfolio_id: UUID, conn=None) -> bool:
-        should_close = False
+        conn_ctx = None
         if conn is None:
             conn_ctx = self.db.connection()
             conn, _ = conn_ctx.__enter__()
-            should_close = True
         try:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -196,5 +190,5 @@ class PostgresPortfolioRepository:
                 """, (str(portfolio_id),))
                 return cur.fetchone() is not None
         finally:
-            if should_close:
+            if conn_ctx is not None:
                 conn_ctx.__exit__(None, None, None)
