@@ -67,7 +67,7 @@ class PortfolioServiceTest(unittest.TestCase):
     def test_add_holding_new_stock(self):
         portfolio = self.service.create_portfolio(self.tenant_id, "Test Portfolio")
         
-        holding = self.service.add_holding(
+        holding = self.service.add_equity_holding(
             portfolio.id, 
             "AAPL", 
             Decimal('100'), 
@@ -90,11 +90,11 @@ class PortfolioServiceTest(unittest.TestCase):
     def test_add_holding_existing_stock(self):
         # First create a stock
         portfolio1 = self.service.create_portfolio(self.tenant_id, "Portfolio 1")
-        self.service.add_holding(portfolio1.id, "AAPL", Decimal('50'), Decimal('500.00'))
+        self.service.add_equity_holding(portfolio1.id, "AAPL", Decimal('50'), Decimal('500.00'))
         
         # Now add holding for same stock in different portfolio
         portfolio2 = self.service.create_portfolio(self.tenant_id, "Portfolio 2")
-        holding = self.service.add_holding(
+        holding = self.service.add_equity_holding(
             portfolio2.id, 
             "AAPL", 
             Decimal('75'), 
@@ -106,21 +106,21 @@ class PortfolioServiceTest(unittest.TestCase):
         # Verify only one stock exists
         all_holdings = self.equity_holding_repo.find_by_portfolio_id(portfolio1.id) + \
                       self.equity_holding_repo.find_by_portfolio_id(portfolio2.id)
-        stock_ids = {h.stock_id for h in all_holdings}
+        stock_ids = {h.equity_id for h in all_holdings}
         self.assertEqual(len(stock_ids), 1)  # Same stock used
 
     def test_add_duplicate_holding_raises_error(self):
         portfolio = self.service.create_portfolio(self.tenant_id, "Test Portfolio")
         
         # Add first holding
-        self.service.add_holding(portfolio.id, "AAPL", Decimal('100'), Decimal('1000.00'))
+        self.service.add_equity_holding(portfolio.id, "AAPL", Decimal('100'), Decimal('1000.00'))
         
         # Try to add another holding for same stock
         with self.assertRaises(DuplicateHoldingError):
-            self.service.add_holding(portfolio.id, "AAPL", Decimal('50'), Decimal('500.00'))
+            self.service.add_equity_holding(portfolio.id, "AAPL", Decimal('50'), Decimal('500.00'))
 
     def test_add_holding_nonexistent_portfolio(self):
-        holding = self.service.add_holding(
+        holding = self.service.add_equity_holding(
             uuid4(),  # Nonexistent portfolio
             "AAPL", 
             Decimal('100'), 
@@ -199,15 +199,15 @@ class PortfolioServiceTest(unittest.TestCase):
         portfolio = self.service.create_portfolio(self.tenant_id, "Test Portfolio")
         
         # Add multiple holdings
-        self.service.add_holding(portfolio.id, "AAPL", Decimal('100'), Decimal('1000.00'))
-        self.service.add_holding(portfolio.id, "GOOGL", Decimal('50'), Decimal('500.00'))
+        self.service.add_equity_holding(portfolio.id, "AAPL", Decimal('100'), Decimal('1000.00'))
+        self.service.add_equity_holding(portfolio.id, "GOOGL", Decimal('50'), Decimal('500.00'))
         
         holdings = self.service.get_holdings(portfolio.id)
         self.assertEqual(len(holdings), 2)
         
         symbols = []
         for holding in holdings:
-            stock = self.equity_repo.get(holding.stock_id)
+            stock = self.equity_repo.get(holding.equity_id)
             symbols.append(stock.symbol)
         
         self.assertIn("AAPL", symbols)
@@ -270,8 +270,11 @@ class PortfolioServiceTest(unittest.TestCase):
         
         positions = []  # Not used in current implementation
         
-        success = self.service.import_from_ibkr(portfolio.id, trades, dividends, positions)
-        self.assertTrue(success)
+        result = self.service.import_from_ibkr(portfolio.id, trades, dividends, positions)
+        self.assertTrue(result.success)
+        self.assertEqual(result.trades_imported, 2)
+        self.assertEqual(result.dividends_imported, 1)
+        self.assertEqual(result.activity_entries_created, 3)
         
         # Verify activity entries were created
         entries = self.service.get_activity_entries(portfolio.id)
@@ -290,8 +293,9 @@ class PortfolioServiceTest(unittest.TestCase):
         self.assertIsNotNone(googl_stock)
 
     def test_import_from_ibkr_nonexistent_portfolio(self):
-        success = self.service.import_from_ibkr(uuid4(), [], [], [])
-        self.assertFalse(success)
+        result = self.service.import_from_ibkr(uuid4(), [], [], [])
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_type, "PortfolioNotFoundError")
 
 if __name__ == '__main__':
     unittest.main()

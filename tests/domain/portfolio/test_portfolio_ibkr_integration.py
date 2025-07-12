@@ -80,13 +80,13 @@ Open Positions,Data,Total,,,,,,,147525.00,,151262.50,3737.50,'''
             self.assertEqual(len(parser.dividends), 3)  # 3 dividend entries (excluding total)
             self.assertEqual(len(parser.positions), 2)  # 2 position entries (excluding total)
              # Import into portfolio
-            success = self.service.import_from_ibkr(
+            result = self.service.import_from_ibkr(
                 self.portfolio.id,
                 parser.trades,
                 parser.dividends,
                 parser.positions
             )
-            self.assertTrue(success)
+            self.assertTrue(result.success)
 
             # Verify activity entries were created (this is the main thing we care about)
             all_entries = self.service.get_activity_entries(self.portfolio.id)
@@ -161,17 +161,18 @@ Open Positions,Data,Total,,,,,,,147525.00,,151262.50,3737.50,'''
             parser.parse(csv_file)
             
             # Import data
-            self.service.import_from_ibkr(
+            result = self.service.import_from_ibkr(
                 self.portfolio.id,
                 parser.trades,
                 parser.dividends,
                 parser.positions
             )
+            self.assertTrue(result.success)
             
             # Try to add a duplicate holding manually (should fail)
             from domain.portfolio.portfolio_errors import DuplicateHoldingError
             with self.assertRaises(DuplicateHoldingError):
-                self.service.add_holding(
+                self.service.add_equity_holding(
                     self.portfolio.id,
                     'AAPL',
                     Decimal('25'),
@@ -179,7 +180,7 @@ Open Positions,Data,Total,,,,,,,147525.00,,151262.50,3737.50,'''
                 )
             
             # Verify that adding holdings for non-existing stocks works
-            new_holding = self.service.add_holding(
+            new_holding = self.service.add_equity_holding(
                 self.portfolio.id,
                 'MSFT',
                 Decimal('100'),
@@ -209,12 +210,13 @@ Open Positions,Data,Total,,,,,,,147525.00,,151262.50,3737.50,'''
             self.assertIn('WhenGenerated', meta)
             
             # Import data and verify raw_data contains metadata
-            self.service.import_from_ibkr(
+            result = self.service.import_from_ibkr(
                 self.portfolio.id,
                 parser.trades,
                 parser.dividends,
                 parser.positions
             )
+            self.assertTrue(result.success)
             
             entries = self.service.get_activity_entries(self.portfolio.id)
             
@@ -240,13 +242,15 @@ Open Positions,Data,Total,,,,,,,147525.00,,151262.50,3737.50,'''
             parser.parse(csv_file)
             
             # Try to import to non-existent portfolio
-            success = self.service.import_from_ibkr(
+            result = self.service.import_from_ibkr(
                 uuid4(),  # Non-existent portfolio
                 parser.trades,
                 parser.dividends,
                 parser.positions
             )
-            self.assertFalse(success)
+            
+            self.assertFalse(result.success)
+            self.assertEqual(result.error_type, "PortfolioNotFoundError")
             
         finally:
             os.unlink(csv_file)

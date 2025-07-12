@@ -43,6 +43,8 @@ erDiagram
     Portfolio ||--o{ ActivityReportEntry : has
     Holding }o--|| Stock : references
     ActivityReportEntry }o--|| Stock : references
+    EquityHolding ||--o{ HistoricalEquityPrice : "uses for pricing"
+    HistoricalEquityPrice }o--|| Equity : "price data for"
 ```
 ---
 ---
@@ -411,6 +413,12 @@ class EquityRepository:
     def find_by_symbol(self, symbol: str, exchange: str) -> Optional[Equity]: ...
     def save(self, equity: Equity) -> None: ...
     def delete(self, equity_id: UUID) -> None: ...
+
+class HistoricalEquityPriceRepository:
+    def save(self, price_record: HistoricalEquityPrice) -> None: ...
+    def find_by_equity_id(self, equity_id: UUID, *, start_date: datetime, end_date: datetime) -> List[HistoricalEquityPrice]: ...
+    def batch_save(self, price_records: List[HistoricalEquityPrice]) -> None: ...
+    def delete(self, id: UUID, recorded_at: datetime) -> None: ...
 ```
 
 ### Repository Architecture
@@ -443,4 +451,4 @@ All other validation and error handling should be performed at the application o
 
 ---
 
-_Last updated: 2025-07-06_
+_Last updated: 2025-07-12_
