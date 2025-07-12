@@ -1,12 +1,13 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
 from core.domain_model import DomainModel
 from .enums import Currency, Exchange
 from ..portfolio_events import HoldingUpdated, CashBalanceUpdated
 from ..portfolio_errors import NegativeCashBalanceError
+from domain.portfolio.models.historical_equity_price import HistoricalEquityPrice
 
 
 class Equity(DomainModel):
@@ -46,7 +47,8 @@ class EquityHolding(DomainModel):
         cost_basis: Decimal,
         current_value: Optional[Decimal] = None,
         created_at: Optional[datetime] = None, 
-        updated_at: Optional[datetime] = None
+        updated_at: Optional[datetime] = None,
+        historical_price_dataloader=None  # Dependency injection for DataLoader
     ):
         super().__init__()
         self.id = id
@@ -57,11 +59,26 @@ class EquityHolding(DomainModel):
         self.current_value = current_value or Decimal('0')
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or self.created_at
+        self._historical_price_dataloader = historical_price_dataloader
+        self._historical_prices = None  # Cache for lazy loading
 
     @property 
     def stock_id(self) -> UUID:
         """Alias for equity_id for backward compatibility."""
         return self.equity_id
+
+    @property
+    def historical_prices(self) -> List[HistoricalEquityPrice]:
+        """Lazy load historical equity prices using DataLoader."""
+        if self._historical_prices is None and self._historical_price_dataloader:
+            # Create a key that includes equity_id, start_date, and end_date
+            key = {
+                'equity_id': self.equity_id,
+                'start_date': date.today() - timedelta(days=30),
+                'end_date': date.today()
+            }
+            self._historical_prices = self._historical_price_dataloader.load(key)
+        return self._historical_prices or []
 
     def update_quantity(self, new_quantity: Decimal):
         """Update the quantity of this holding."""

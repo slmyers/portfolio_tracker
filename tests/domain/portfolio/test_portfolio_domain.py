@@ -1,7 +1,7 @@
 import unittest
 from uuid import uuid4
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from domain.portfolio.models.portfolio import Portfolio, PortfolioName
 from domain.portfolio.models.holding import EquityHolding
 from domain.portfolio.models.activity_report_entry import ActivityReportEntry
@@ -16,6 +16,7 @@ from domain.portfolio.portfolio_errors import (
     StockNotFoundError
 )
 from unittest.mock import Mock
+from domain.portfolio.models.historical_equity_price import HistoricalEquityPrice
 
 class PortfolioNameTestCase(unittest.TestCase):
     def test_valid_name(self):
@@ -87,6 +88,55 @@ class EquityHoldingTestCase(unittest.TestCase):
     def test_update_current_value(self):
         self.holding.update_current_value(Decimal('1500.00'))
         self.assertEqual(self.holding.current_value, Decimal('1500.00'))
+
+    def test_lazy_load_historical_prices(self):
+        mock_dataloader = Mock()
+        mock_dataloader.load.return_value = [
+            HistoricalEquityPrice(
+                id=uuid4(),
+                equity_id=self.equity_id,
+                price=Decimal('150.00'),
+                recorded_at=datetime(2025, 1, 1)
+            ),
+            HistoricalEquityPrice(
+                id=uuid4(),
+                equity_id=self.equity_id,
+                price=Decimal('155.00'),
+                recorded_at=datetime(2025, 1, 2)
+            )
+        ]
+
+        holding = EquityHolding(
+            id=self.holding_id,
+            portfolio_id=self.portfolio_id,
+            equity_id=self.equity_id,
+            quantity=Decimal('100'),
+            cost_basis=Decimal('1000.00'),
+            historical_price_dataloader=mock_dataloader
+        )
+
+        historical_prices = holding.historical_prices
+
+        self.assertEqual(len(historical_prices), 2)
+        self.assertEqual(historical_prices[0].price, Decimal('150.00'))
+        self.assertEqual(historical_prices[1].price, Decimal('155.00'))
+        
+        # Verify the DataLoader was called with the correct key structure
+        mock_dataloader.load.assert_called_once()
+        call_args = mock_dataloader.load.call_args[0][0]
+        self.assertEqual(call_args['equity_id'], self.equity_id)
+        self.assertEqual(call_args['start_date'], date.today() - timedelta(days=30))
+        self.assertEqual(call_args['end_date'], date.today())
+
+        # Test caching - second access shouldn't call DataLoader again
+        historical_prices2 = holding.historical_prices
+        self.assertEqual(len(historical_prices2), 2)
+        mock_dataloader.load.assert_called_once()  # Still only called once
+
+    def test_historical_prices_without_dataloader(self):
+        """Test that historical_prices returns empty list when no DataLoader is provided."""
+        historical_prices = self.holding.historical_prices
+        self.assertEqual(historical_prices, [])
 
 class ActivityReportEntryTestCase(unittest.TestCase):
     def setUp(self):

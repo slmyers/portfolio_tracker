@@ -143,6 +143,52 @@ Features such as time travel, hypothetical scenarios, and advanced reversibility
 - `created_at: datetime`
 - `updated_at: datetime`
 
+### Lazy Loading Historical Equity Prices
+The `EquityHolding` entity supports lazy loading for historical equity prices using the DataLoader pattern. Historical prices are fetched only when explicitly requested via the `historical_prices` property. This property uses a `DataLoader` to batch and cache requests efficiently.
+
+#### Key Features:
+- **Batched Requests**: The DataLoader batches multiple requests for historical prices, reducing database queries.
+- **Caching**: Once fetched, historical prices are cached within the entity and DataLoader to avoid repeated queries.
+- **Request Coalescing**: Multiple requests for the same equity ID and date range are coalesced into a single database query.
+- **Composite Keys**: The DataLoader uses composite keys containing `equity_id`, `start_date`, and `end_date` for precise data fetching.
+
+#### DataLoader Key Structure:
+The DataLoader expects keys in the following format:
+```python
+key = {
+    'equity_id': UUID('...'),
+    'start_date': date(2025, 6, 12),  # 30 days ago from today
+    'end_date': date(2025, 7, 12)     # today
+}
+```
+
+#### Example Usage:
+```python
+# Configure a DataLoader for historical equity prices
+def batch_load_historical_prices(keys):
+    # Implementation should handle batching multiple equity_id/date_range requests
+    # and return results in the same order as keys
+    pass
+
+historical_price_dataloader = DataLoader(
+    batch_load_fn=batch_load_historical_prices,
+    backend=cache_backend,
+    get_named_lock=lock_provider,
+    logger=logger
+)
+
+holding = EquityHolding(
+    id=UUID("..."),
+    portfolio_id=UUID("..."),
+    equity_id=UUID("..."),
+    quantity=Decimal("10"),
+    cost_basis=Decimal("100"),
+    historical_price_dataloader=historical_price_dataloader
+)
+
+# Access historical prices lazily (fetches last 30 days)
+historical_prices = holding.historical_prices
+```
 
 ### Entity: ActivityReportEntry
 - `id: UUID`
@@ -165,6 +211,55 @@ The `amount` field must be consistent with the `activity_type`:
 - For other types, the meaning of `amount` should be clearly defined and documented in the integration or parser.
 
 If the `amount` is not consistent with the `activity_type`, the entry should be considered invalid and rejected or flagged for review.
+
+---
+
+### Entity: HistoricalEquityPrice
+- `id: UUID`
+- `equity_id: UUID`  # References Equity entity
+- `price: Decimal`  # Equity price at the recorded time
+- `recorded_at: datetime`  # Timestamp of the price record
+
+### Integration with TimescaleDB
+To efficiently store and query historical equity prices, the Portfolio Tracker application integrates with TimescaleDB, a time-series database built on PostgreSQL. This integration supports:
+
+- **Efficient Storage**: Historical equity prices are stored as time-series data, optimized for scalability and performance.
+- **Querying**: TimescaleDB enables efficient querying of historical prices for analysis, reporting, and portfolio calculations.
+- **Aggregation**: Built-in support for aggregating data over time intervals (e.g., daily, weekly, monthly averages).
+- **Partitioning**: The `historical_equity_price` table is configured as a hypertable partitioned on `recorded_at` (time dimension) and `equity_id` (space dimension) with 4 space partitions. This ensures balanced data distribution and optimized query performance for equity-specific data.
+
+### Lazy Loading and API Integration
+Historical equity prices are lazily loaded. When a request for historical price data is made, the application dispatches an API request to external services like Alpha Vantage to fetch the required data. Once retrieved, the data is stored in TimescaleDB for efficient future access. This approach ensures:
+
+- **On-Demand Data Retrieval**: Data is fetched only when needed, reducing unnecessary storage and API calls.
+- **Persistence**: Retrieved data is stored in TimescaleDB for subsequent queries, minimizing repeated API requests.
+- **Scalability**: Lazy loading supports high-throughput systems by deferring data retrieval until explicitly requested.
+
+### Repository Interface for Historical Equity Prices
+Below is a conceptual Python interface for managing historical equity prices:
+
+```python
+class HistoricalEquityPriceRepository:
+    def save(self, price_record: HistoricalEquityPrice) -> None: ...
+    def find_by_equity_id(self, equity_id: UUID, *, start_date: datetime, end_date: datetime) -> List[HistoricalEquityPrice]: ...
+    def batch_save(self, price_records: List[HistoricalEquityPrice]) -> None: ...
+```
+
+### Daily Price Update Process
+A scheduled job or background process fetches daily equity prices from external APIs and saves them into TimescaleDB. This ensures:
+
+- **Consistency**: Historical prices are updated daily.
+- **Availability**: Prices are readily available for portfolio calculations without repeated API calls.
+
+### Relationships
+| Entity                | Relationship/Reference                | Notes |
+|-----------------------|---------------------------------------|-------|
+| HistoricalEquityPrice | Equity                                | References Equity entity |
+
+### Scalability Considerations
+- **Indexing**: TimescaleDB automatically indexes time-series data for efficient querying.
+- **Batch Operations**: Repository interfaces support batch operations for bulk updates.
+- **Caching**: Frequently accessed historical data can be cached using Redis or similar backends.
 
 ---
 
