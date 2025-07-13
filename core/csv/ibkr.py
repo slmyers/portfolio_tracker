@@ -150,7 +150,14 @@ class IbkrCsvParser(BaseCSVParser):
             section_header_detector=ibkr_section_header_detector,
             logger=logger,
         )
-        self.logger = logger
+        if logger is None:
+            self.logger = {
+                "info": print,
+                "debug": print,
+                "error": print,
+            }
+        else:
+            self.logger = logger
 
     @property
     def trades(self):
@@ -202,19 +209,16 @@ class IbkrCsvParser(BaseCSVParser):
         )
 
     def _parse_section_statement(self, rows, handler=None):
-        if self.logger:
-            self.logger.debug(f"[IBKR DEBUG] Parsing Statement section with {len(rows)} rows")
+        self.logger.debug(f"[IBKR DEBUG] Parsing Statement section with {len(rows)} rows")
         for row in rows:
-            if self.logger:
-                self.logger.debug(f"[IBKR DEBUG] Statement row: {row}")
+            self.logger.debug(f"[IBKR DEBUG] Statement row: {row}")
             if len(row) >= 4 and row[1] == "Data":
                 handler.handle_row({
                     "field_name": row[2].strip(),
                     "field_value": row[3].strip()
                 })
         meta = handler.statement_metadata
-        if self.logger:
-            self.logger.debug(f"[IBKR DEBUG] Extracted statement_info: {meta}")
+        self.logger.debug(f"[IBKR DEBUG] Extracted statement_info: {meta}")
         # Parse period
         period = meta.get("Period", "")
         if " - " in period:
@@ -223,8 +227,7 @@ class IbkrCsvParser(BaseCSVParser):
                 meta["PeriodStart"] = datetime.strptime(period_start, "%B %d, %Y").date()
                 meta["PeriodEnd"] = datetime.strptime(period_end, "%B %d, %Y").date()
             except Exception as e:
-                if self.logger:
-                    self.logger.debug(f"[IBKR DEBUG] Failed to parse period: {e}")
+                self.logger.debug(f"[IBKR DEBUG] Failed to parse period: {e}")
                 meta["PeriodStart"] = period_start
                 meta["PeriodEnd"] = period_end
         # Parse generated date
@@ -232,10 +235,8 @@ class IbkrCsvParser(BaseCSVParser):
         try:
             meta["GeneratedAt"] = datetime.strptime(when_generated, "%Y-%m-%d")
         except Exception as e:
-            if self.logger:
-                self.logger.debug(f"[IBKR DEBUG] Failed to parse generated date: {e}")
+            self.logger.debug(f"[IBKR DEBUG] Failed to parse generated date: {e}")
             meta["GeneratedAt"] = when_generated
-        if self.logger:
             self.logger.debug(f"[IBKR DEBUG] Final statement_metadata: {meta}")
 
     def _parse_section_common(self, rows, handler, summary_row_check=None, header_debug_label=None):
@@ -253,21 +254,21 @@ class IbkrCsvParser(BaseCSVParser):
             if row_type == 'Header':
                 header = row[2:]
                 normalized_header = [normalize_field(h) for h in header]
-                if self.logger and header_debug_label:
+                if header_debug_label:
                     self.logger.debug(f"[IBKR DEBUG] Detected header in {header_debug_label}: {header}")
                 continue
             if row_type == 'Data':
                 if not header:
-                    if self.logger and header_debug_label:
+                    if header_debug_label:
                         self.logger.warning(f"[IBKR WARNING] Data row encountered before header in {header_debug_label} section.")
                     continue
                 if summary_row_check and summary_row_check(row):
-                    if self.logger and header_debug_label:
+                    if header_debug_label:
                         self.logger.debug(f"[IBKR DEBUG] Skipping summary row in {header_debug_label}: {row}")
                     continue
                 data_row = row[2:]
                 if len(data_row) != len(header):
-                    if self.logger and header_debug_label:
+                    if header_debug_label:
                         self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in {header_debug_label}: {data_row} vs {header}")
                     continue
                 data = dict(zip(normalized_header, data_row))
