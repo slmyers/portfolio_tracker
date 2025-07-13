@@ -2,6 +2,7 @@ from typing import Dict, Optional, List
 from core.csv.base import BaseCSVParser, CsvSectionHandler
 from datetime import datetime
 from core.csv.utils import normalize_field, is_summary_row
+from enum import Enum
 
 def parse_float(val):
     try:
@@ -121,6 +122,13 @@ def ibkr_section_header_detector(row: List[str]) -> Optional[str]:
         return row[0].strip()
     return None
 
+class SectionNames(Enum):
+    TRADES = "Trades"
+    DIVIDENDS = "Dividends"
+    OPEN_POSITIONS = "Open Positions"
+    STATEMENT = "Statement"
+    FOREX_BALANCES = "Forex Balances"
+
 class IbkrCsvParser(BaseCSVParser):
     def __init__(
         self,
@@ -130,11 +138,11 @@ class IbkrCsvParser(BaseCSVParser):
     ):
         if section_handlers is None:
             section_handlers = {
-                "Trades": IbkrTradesHandler(),
-                "Dividends": IbkrDividendsHandler(),
-                "Open Positions": IbkrOpenPositionsHandler(),
-                "Statement": IbkrStatementHandler(),
-                "Forex Balances": IbkrForexBalancesHandler(),
+                SectionNames.TRADES.value: IbkrTradesHandler(),
+                SectionNames.DIVIDENDS.value: IbkrDividendsHandler(),
+                SectionNames.OPEN_POSITIONS.value: IbkrOpenPositionsHandler(),
+                SectionNames.STATEMENT.value: IbkrStatementHandler(),
+                SectionNames.FOREX_BALANCES.value: IbkrForexBalancesHandler(),
             }
         super().__init__(
             section_handlers=section_handlers,
@@ -146,27 +154,27 @@ class IbkrCsvParser(BaseCSVParser):
 
     @property
     def trades(self):
-        handler = self.section_handlers.get("Trades")
+        handler = self.section_handlers.get(SectionNames.TRADES.value)
         return handler.trades if handler else []
 
     @property
     def dividends(self):
-        handler = self.section_handlers.get("Dividends")
+        handler = self.section_handlers.get(SectionNames.DIVIDENDS.value)
         return handler.dividends if handler else []
 
     @property
     def positions(self):
-        handler = self.section_handlers.get("Open Positions")
+        handler = self.section_handlers.get(SectionNames.OPEN_POSITIONS.value)
         return handler.positions if handler else []
     
     @property
     def meta(self):
-        handler = self.section_handlers.get("Statement")
+        handler = self.section_handlers.get(SectionNames.STATEMENT.value)
         return handler.statement_metadata if handler else {}
 
     @property
     def forex_balances(self):
-        handler = self.section_handlers.get("Forex Balances")
+        handler = self.section_handlers.get(SectionNames.FOREX_BALANCES.value)
         return handler.forex_balances if handler else []
     
     def _parse_section_trades(self, rows, handler):
@@ -270,7 +278,7 @@ class IbkrCsvParser(BaseCSVParser):
             rows,
             handler,
             summary_row_check=lambda row: is_summary_row(row, summary_keywords=["total"]),
-            header_debug_label="Forex Balances"
+            header_debug_label=SectionNames.FOREX_BALANCES.value
         )
 
     def pretty_print(self, sections=None):
