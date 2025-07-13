@@ -1,6 +1,7 @@
 from typing import Dict, Optional, List
 from core.csv.base import BaseCSVParser, CsvSectionHandler
 from datetime import datetime
+from core.csv.utils import normalize_field, is_summary_row
 
 def parse_float(val):
     try:
@@ -229,14 +230,12 @@ class IbkrCsvParser(BaseCSVParser):
         if self.logger:
             self.logger.debug(f"[IBKR DEBUG] Final statement_metadata: {meta}")
 
-    def _parse_section_common(self, rows, handler, summary_row_check, header_debug_label=None):
+    def _parse_section_common(self, rows, handler, summary_row_check=None, header_debug_label=None):
         """
         Shared parsing logic for IBKR sections. Skips summary/total rows and handles header/data mapping.
         summary_row_check: function(row) -> bool, returns True if row should be skipped as summary.
         header_debug_label: optional string for debug logging.
         """
-        def normalize_field(field):
-            return field.strip().lower().replace(' ', '_').replace('/', '_')
         header = None
         normalized_header = None
         for row_num, row in enumerate(rows):
@@ -254,7 +253,7 @@ class IbkrCsvParser(BaseCSVParser):
                     if self.logger and header_debug_label:
                         self.logger.warning(f"[IBKR WARNING] Data row encountered before header in {header_debug_label} section.")
                     continue
-                if summary_row_check(row):
+                if summary_row_check and summary_row_check(row):
                     if self.logger and header_debug_label:
                         self.logger.debug(f"[IBKR DEBUG] Skipping summary row in {header_debug_label}: {row}")
                     continue
@@ -270,7 +269,7 @@ class IbkrCsvParser(BaseCSVParser):
         self._parse_section_common(
             rows,
             handler,
-            summary_row_check=lambda row: (row[2].strip().lower().startswith('total')) if len(row) > 2 else False,
+            summary_row_check=lambda row: is_summary_row(row, summary_keywords=["total"]),
             header_debug_label="Forex Balances"
         )
 
@@ -350,8 +349,6 @@ class IbkrCsvParser(BaseCSVParser):
         return self
 
     def _parse_section_generic(self, rows, handler):
-        def normalize_field(field):
-            return field.strip().lower().replace(' ', '_').replace('/', '_')
         header = None
         normalized_header = None
         for row_num, row in enumerate(rows):
