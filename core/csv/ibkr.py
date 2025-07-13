@@ -2,6 +2,7 @@ from typing import Dict, Optional, List
 from core.csv.base import BaseCSVParser, CsvSectionHandler
 from datetime import datetime
 from core.csv.utils import normalize_field, is_summary_row
+from core.csv.state_machine import CsvStateMachine
 from enum import Enum
 
 def parse_float(val):
@@ -38,8 +39,8 @@ class IbkrTradesHandler(CsvSectionHandler):
             "symbol": row.get("symbol"),
             "datetime": row.get("date_time"),
             "quantity": parse_float(row.get("quantity")),
-            "t_price": parse_float(row.get("t_price")),
-            "c_price": parse_float(row.get("c_price")),
+            "t_price": parse_float(row.get("t._price")),  # Handle normalized field name
+            "c_price": parse_float(row.get("c._price")),  # Handle normalized field name
             "proceeds": parse_float(row.get("proceeds")),
             "commission": parse_float(row.get("comm_fee")) or parse_float(row.get("comm_in_cad")),
             "basis": parse_float(row.get("basis")),
@@ -155,9 +156,13 @@ class IbkrCsvParser(BaseCSVParser):
                 "info": print,
                 "debug": print,
                 "error": print,
+                "warning": print,
             }
         else:
             self.logger = logger
+        
+        # Initialize state machine
+        self.state_machine = CsvStateMachine(self.logger)
 
     @property
     def trades(self):
@@ -185,41 +190,44 @@ class IbkrCsvParser(BaseCSVParser):
         return handler.forex_balances if handler else []
     
     def _parse_section_trades(self, rows, handler):
-        self._parse_section_common(
-            rows,
-            handler,
-            summary_row_check=lambda row: (row[2].strip().lower().startswith('total') or row[2].strip().lower().startswith('subtotal')) if len(row) > 2 else False,
-            header_debug_label="Trades"
-        )
+        self.state_machine.transition_to_section(SectionNames.TRADES.value)
+        self.state_machine.process_section(rows, handler)
 
     def _parse_section_open_positions(self, rows, handler):
-        self._parse_section_common(
-            rows,
-            handler,
-            summary_row_check=lambda row: (row[2].strip().lower().startswith('total') or row[2].strip().lower().startswith('subtotal')) if len(row) > 2 else False,
-            header_debug_label="Open Positions"
-        )
+        self.state_machine.transition_to_section(SectionNames.OPEN_POSITIONS.value)
+        self.state_machine.process_section(rows, handler)
 
     def _parse_section_dividends(self, rows, handler):
-        self._parse_section_common(
-            rows,
-            handler,
-            summary_row_check=lambda row: (row[2].strip().lower().startswith('total')) if len(row) > 2 else False,
-            header_debug_label="Dividends"
-        )
+        self.state_machine.transition_to_section(SectionNames.DIVIDENDS.value)
+        self.state_machine.process_section(rows, handler)
 
     def _parse_section_statement(self, rows, handler=None):
-        self.logger.debug(f"[IBKR DEBUG] Parsing Statement section with {len(rows)} rows")
-        for row in rows:
-            self.logger.debug(f"[IBKR DEBUG] Statement row: {row}")
-            if len(row) >= 4 and row[1] == "Data":
-                handler.handle_row({
-                    "field_name": row[2].strip(),
-                    "field_value": row[3].strip()
-                })
+        self.state_machine.transition_to_section(SectionNames.STATEMENT.value)
+        self.state_machine.process_section(rows, handler)
+        
+        # Post-process statement metadata
+        self._process_statement_metadata(handler)
+
+    def _process_statement_metadata(self, handler):
+        """Process and enhance statement metadata after parsing."""
+        if not handler:
+            return
+            
         meta = handler.statement_metadata
-        self.logger.debug(f"[IBKR DEBUG] Extracted statement_info: {meta}")
+        if self.logger:
+            self.logger.debug(f"[IBKR DEBUG] Extracted statement_info: {meta}")
+        
         # Parse period
+        self._parse_period(meta)
+        
+        # Parse generated date
+        self._parse_generated_date(meta)
+        
+        if self.logger:
+            self.logger.debug(f"[IBKR DEBUG] Final statement_metadata: {meta}")
+
+    def _parse_period(self, meta):
+        """Parse period information from statement metadata."""
         period = meta.get("Period", "")
         if " - " in period:
             period_start, period_end = [d.strip().replace('"', '') for d in period.split(" - ")]
@@ -227,60 +235,24 @@ class IbkrCsvParser(BaseCSVParser):
                 meta["PeriodStart"] = datetime.strptime(period_start, "%B %d, %Y").date()
                 meta["PeriodEnd"] = datetime.strptime(period_end, "%B %d, %Y").date()
             except Exception as e:
-                self.logger.debug(f"[IBKR DEBUG] Failed to parse period: {e}")
+                if self.logger:
+                    self.logger.debug(f"[IBKR DEBUG] Failed to parse period: {e}")
                 meta["PeriodStart"] = period_start
                 meta["PeriodEnd"] = period_end
-        # Parse generated date
+
+    def _parse_generated_date(self, meta):
+        """Parse generated date from statement metadata."""
         when_generated = meta.get("WhenGenerated", "").replace('"', '').split(",")[0]
         try:
             meta["GeneratedAt"] = datetime.strptime(when_generated, "%Y-%m-%d")
         except Exception as e:
-            self.logger.debug(f"[IBKR DEBUG] Failed to parse generated date: {e}")
+            if self.logger:
+                self.logger.debug(f"[IBKR DEBUG] Failed to parse generated date: {e}")
             meta["GeneratedAt"] = when_generated
-            self.logger.debug(f"[IBKR DEBUG] Final statement_metadata: {meta}")
-
-    def _parse_section_common(self, rows, handler, summary_row_check=None, header_debug_label=None):
-        """
-        Shared parsing logic for IBKR sections. Skips summary/total rows and handles header/data mapping.
-        summary_row_check: function(row) -> bool, returns True if row should be skipped as summary.
-        header_debug_label: optional string for debug logging.
-        """
-        header = None
-        normalized_header = None
-        for row_num, row in enumerate(rows):
-            if not any(cell.strip() for cell in row):
-                continue
-            row_type = row[1].strip() if len(row) > 1 else None
-            if row_type == 'Header':
-                header = row[2:]
-                normalized_header = [normalize_field(h) for h in header]
-                if header_debug_label:
-                    self.logger.debug(f"[IBKR DEBUG] Detected header in {header_debug_label}: {header}")
-                continue
-            if row_type == 'Data':
-                if not header:
-                    if header_debug_label:
-                        self.logger.warning(f"[IBKR WARNING] Data row encountered before header in {header_debug_label} section.")
-                    continue
-                if summary_row_check and summary_row_check(row):
-                    if header_debug_label:
-                        self.logger.debug(f"[IBKR DEBUG] Skipping summary row in {header_debug_label}: {row}")
-                    continue
-                data_row = row[2:]
-                if len(data_row) != len(header):
-                    if header_debug_label:
-                        self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in {header_debug_label}: {data_row} vs {header}")
-                    continue
-                data = dict(zip(normalized_header, data_row))
-                handler.handle_row(data)
 
     def _parse_section_forex_balances(self, rows, handler):
-        self._parse_section_common(
-            rows,
-            handler,
-            summary_row_check=lambda row: is_summary_row(row, summary_keywords=["total"]),
-            header_debug_label=SectionNames.FOREX_BALANCES.value
-        )
+        self.state_machine.transition_to_section(SectionNames.FOREX_BALANCES.value)
+        self.state_machine.process_section(rows, handler)
 
     def pretty_print(self, sections=None):
         """
@@ -358,21 +330,8 @@ class IbkrCsvParser(BaseCSVParser):
         return self
 
     def _parse_section_generic(self, rows, handler):
-        header = None
-        normalized_header = None
-        for row_num, row in enumerate(rows):
-            if not any(cell.strip() for cell in row):
-                continue
-            row_type = row[1].strip() if len(row) > 1 else None
-            if row_type == 'Header':
-                header = row[2:]
-                normalized_header = [normalize_field(h) for h in header]
-                continue
-            if row_type == 'Data':
-                if not header:
-                    continue
-                data_row = row[2:]
-                if len(data_row) != len(header):
-                    continue
-                data = dict(zip(normalized_header, data_row))
-                handler.handle_row(data)
+        """Generic section parsing using state machine."""
+        # Use the current section name if available, or fallback to generic
+        section_name = getattr(self.state_machine, 'current_section_name', 'Generic')
+        self.state_machine.transition_to_section(section_name)
+        self.state_machine.process_section(rows, handler)
