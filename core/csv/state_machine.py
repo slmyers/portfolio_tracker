@@ -6,7 +6,7 @@ where each section requires different parsing logic.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List
 from enum import Enum
 from core.csv.utils import normalize_field, is_summary_row
 
@@ -150,7 +150,7 @@ class ForexBalancesParsingState(SectionParsingState):
     """Parsing state for Forex Balances section."""
     
     def should_skip_row(self, row: List[str]) -> bool:
-        return is_summary_row(row, summary_keywords=["total"])
+        return is_summary_row(row, summary_keywords=["total", "subtotal"])
 
 
 class GenericParsingState(SectionParsingState):

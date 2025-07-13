@@ -167,6 +167,46 @@ class TestStatementParsingState:
         handler.handle_row.assert_not_called()
 
 
+class TestOpenPositionsParsingState:
+    """Test the open positions-specific parsing state."""
+
+    def test_open_positions_skip_summary_rows(self):
+        """Test that open positions parsing state correctly identifies summary rows."""
+        state = OpenPositionsParsingState("Open Positions")
+
+        # Should skip total rows
+        total_row = ["Open Positions", "Data", "Total", "100", "USD"]
+        assert state.should_skip_row(total_row) is True
+
+        # Should skip subtotal rows
+        subtotal_row = ["Open Positions", "Data", "SubTotal", "50", "USD"]
+        assert state.should_skip_row(subtotal_row) is True
+
+        # Should not skip regular data rows
+        data_row = ["Open Positions", "Data", "AAPL", "100", "USD"]
+        assert state.should_skip_row(data_row) is False
+
+
+class TestForexBalancesParsingState:
+    """Test the forex balances-specific parsing state."""
+
+    def test_forex_balances_skip_summary_rows(self):
+        """Test that forex balances parsing state correctly identifies summary rows."""
+        state = ForexBalancesParsingState("Forex Balances")
+
+        # Should skip total rows
+        total_row = ["Forex Balances", "Data", "Total", "100", "USD"]
+        assert state.should_skip_row(total_row) is True
+
+        # Should skip subtotal rows
+        subtotal_row = ["Forex Balances", "Data", "SubTotal", "50", "USD"]
+        assert state.should_skip_row(subtotal_row) is True
+
+        # Should not skip regular data rows
+        data_row = ["Forex Balances", "Data", "EUR", "100", "USD"]
+        assert state.should_skip_row(data_row) is False
+
+
 class TestCsvStateMachine:
     """Test the CSV state machine."""
     

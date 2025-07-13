@@ -1,6 +1,6 @@
 """PostgreSQL repository implementation for historical equity prices."""
 
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 from decimal import Decimal
 from datetime import datetime

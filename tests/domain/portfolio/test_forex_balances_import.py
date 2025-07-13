@@ -3,7 +3,6 @@
 import unittest
 from uuid import uuid4
 from decimal import Decimal
-from datetime import datetime
 
 from domain.portfolio.portfolio_service import PortfolioService
 from domain.portfolio.repository.in_memory import (

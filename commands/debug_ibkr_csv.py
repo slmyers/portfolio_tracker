@@ -16,13 +16,13 @@ def debug_ibkr_csv():
     parser = IbkrCsvParser(logger=logger)
     parser.parse(csv_file)
     
-    print(f"\n=== IBKR CSV Debug Report ===")
+    print("\n=== IBKR CSV Debug Report ===")
     print(f"File: {csv_file}")
     print(f"Trades: {len(parser.trades)}")
     print(f"Dividends: {len(parser.dividends)}")
     print(f"Positions: {len(parser.positions)}")
     
-    print(f"\n=== Trades ===")
+    print("\n=== Trades ===")
     for i, trade in enumerate(parser.trades[:3]):  # Show first 3
         print(f"Trade {i+1}:")
         print(f"  Symbol: {trade.get('symbol')}")
@@ -31,7 +31,7 @@ def debug_ibkr_csv():
         print(f"  Proceeds: {trade.get('proceeds')}")
         print()
     
-    print(f"\n=== Dividends ===")
+    print("\n=== Dividends ===")
     for i, dividend in enumerate(parser.dividends[:3]):  # Show first 3
         print(f"Dividend {i+1}:")
         print(f"  Date: {dividend.get('date')}")
@@ -39,7 +39,7 @@ def debug_ibkr_csv():
         print(f"  Amount: {dividend.get('amount')}")
         print()
     
-    print(f"\n=== Positions ===")
+    print("\n=== Positions ===")
     for i, position in enumerate(parser.positions[:3]):  # Show first 3
         print(f"Position {i+1}:")
         print(f"  Symbol: {position.get('symbol')}")

@@ -63,7 +63,7 @@ def demo_ibkr_import(csv_file_path: str) -> bool:
         print(f"❌ CSV file not found: {csv_file_path}")
         return False
     
-    print(f"🚀 Starting IBKR CSV Import Demo")
+    print("🚀 Starting IBKR CSV Import Demo")
     print(f"📁 File: {csv_file_path}")
     print()
     
@@ -131,7 +131,7 @@ def demo_ibkr_import(csv_file_path: str) -> bool:
         trade_activities = [a for a in activities if a.activity_type == 'TRADE']
         dividend_activities = [a for a in activities if a.activity_type == 'DIVIDEND']
         
-        print(f"📊 Summary:")
+        print("📊 Summary:")
         print(f"   • {len(holdings)} equity holdings")
         print(f"   • {len(trade_activities)} trade activities")
         print(f"   • {len(dividend_activities)} dividend activities")

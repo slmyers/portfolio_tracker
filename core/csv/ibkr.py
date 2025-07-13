@@ -1,7 +1,6 @@
 from typing import Dict, Optional, List
 from core.csv.base import BaseCSVParser, CsvSectionHandler
 from datetime import datetime
-from core.csv.utils import normalize_field, is_summary_row
 from core.csv.state_machine import CsvStateMachine
 from enum import Enum
 

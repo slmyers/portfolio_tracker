@@ -131,7 +131,7 @@ def import_ibkr_csv(portfolio_id: UUID, portfolio_name: str, tenant_id: UUID, cs
                     cash_holdings = service.get_cash_holdings(portfolio.id, conn=conn)
                     activities = service.get_activity_entries(portfolio.id, conn=conn)
                     
-                    logger.info(f"Import results:")
+                    logger.info("Import results:")
                     logger.info(f"  - {len(holdings)} equity holdings") 
                     logger.info(f"  - {len(cash_holdings)} cash holdings")
                     logger.info(f"  - {len(activities)} activity entries")

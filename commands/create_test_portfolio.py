@@ -7,35 +7,27 @@ Usage:
 import argparse
 import sys
 from uuid import uuid4
-
-from commands.import_ibkr_csv import create_portfolio_service
 from core.di_container import Container
+# Use in-memory approach to create portfolio first
+from domain.portfolio.repository.in_memory import (
+    InMemoryPortfolioRepository, InMemoryEquityRepository,
+    InMemoryEquityHoldingRepository, InMemoryCashHoldingRepository,
+    InMemoryActivityReportEntryRepository
+)
+from domain.portfolio.portfolio_service import PortfolioService
 
 
 def create_test_portfolio(name: str):
     """Create a test portfolio in PostgreSQL."""
     container = Container()
-    db = container.postgres_pool()
     logger = container.logger()
     
     try:
-        # Create service
-        service = create_portfolio_service(db)
-        
         # Create portfolio outside of transaction first
         tenant_id = uuid4()
         
         logger.info(f"Creating portfolio: {name}")
-        logger.info(f"Tenant ID: {tenant_id}")
-        
-        # Use in-memory approach to create portfolio first
-        from domain.portfolio.repository.in_memory import (
-            InMemoryPortfolioRepository, InMemoryEquityRepository,
-            InMemoryEquityHoldingRepository, InMemoryCashHoldingRepository,
-            InMemoryActivityReportEntryRepository
-        )
-        from domain.portfolio.portfolio_service import PortfolioService
-        
+        logger.info(f"Tenant ID: {tenant_id}")        
         # Create in-memory service first
         cash_holding_repo = InMemoryCashHoldingRepository()
         portfolio_repo = InMemoryPortfolioRepository(cash_holding_repo)

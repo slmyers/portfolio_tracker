@@ -100,7 +100,7 @@ def import_ibkr_csv_memory(csv_file_path: str) -> bool:
             holdings = service.get_equity_holdings(portfolio.id)
             activities = service.get_activity_entries(portfolio.id)
             
-            logger.info(f"Import results:")
+            logger.info("Import results:")
             logger.info(f"  - {len(holdings)} equity holdings")
             logger.info(f"  - {len(activities)} activity entries")
             
