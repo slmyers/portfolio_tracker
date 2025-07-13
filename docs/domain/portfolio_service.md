@@ -21,7 +21,7 @@ The service depends on the following repositories via dependency injection:
 ### Portfolio Management
 
 ```python
-def create_portfolio(self, tenant_id: UUID, name: str, conn=None) -> Portfolio
+def create_portfolio(self, tenant_id: UUID, name: str, portfolio_id: Optional[UUID] = None, conn=None) -> Portfolio
 def get_portfolio(self, portfolio_id: UUID, conn=None) -> Optional[Portfolio]
 def get_portfolios_by_tenant(self, tenant_id: UUID, conn=None) -> List[Portfolio]
 def rename_portfolio(self, portfolio_id: UUID, new_name: str, conn=None) -> bool

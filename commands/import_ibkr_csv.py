@@ -2,7 +2,7 @@
 Command to import IBKR CSV file into a portfolio.
 
 Usage:
-    python -m commands.import_ibkr_csv --portfolio-id <uuid> --csv-file <path>
+    python -m commands.import_ibkr_csv --tenant-id <uuid> --portfolio-id <uuid> --portfolio-name "Portfolio Name" --csv-file <path>
 """
 import argparse
 import sys
@@ -38,7 +38,7 @@ def create_portfolio_service(db) -> PortfolioService:
     )
 
 
-def import_ibkr_csv(portfolio_id: UUID, portfolio_name: str, csv_file_path: str) -> bool:
+def import_ibkr_csv(portfolio_id: UUID, portfolio_name: str, tenant_id: UUID, csv_file_path: str) -> bool:
     """
     Import IBKR CSV data into the specified portfolio.
     
@@ -52,6 +52,7 @@ def import_ibkr_csv(portfolio_id: UUID, portfolio_name: str, csv_file_path: str)
     Args:
         portfolio_id: UUID of the portfolio to import into
         portfolio_name: Name of the portfolio to create if it doesn't exist
+        tenant_id: UUID of the tenant that owns this portfolio
         csv_file_path: Path to the IBKR CSV file
         
     Returns:
@@ -75,8 +76,9 @@ def import_ibkr_csv(portfolio_id: UUID, portfolio_name: str, csv_file_path: str)
         trades = parser.trades
         dividends = parser.dividends
         positions = parser.positions
+        forex_balances = parser.forex_balances
         
-        logger.info(f"Parsed {len(trades)} trades, {len(dividends)} dividends, {len(positions)} positions")
+        logger.info(f"Parsed {len(trades)} trades, {len(dividends)} dividends, {len(positions)} positions, {len(forex_balances)} forex balances")
         
         if not trades and not dividends and not positions:
             logger.warning("No data found in CSV file")
@@ -95,9 +97,9 @@ def import_ibkr_csv(portfolio_id: UUID, portfolio_name: str, csv_file_path: str)
                 portfolio = service.get_portfolio(portfolio_id, conn=conn)
                 if not portfolio:
                     logger.info(f"Portfolio {portfolio_id} not found. Creating new portfolio: {portfolio_name}")
-                    # Use portfolio_id as tenant_id for now (this should be changed in a real multi-tenant system)
-                    portfolio = service.create_portfolio(portfolio_id, portfolio_name, conn=conn)
-                    logger.info(f"Created portfolio: {portfolio.id}")
+                    # Use proper tenant_id and portfolio_id
+                    portfolio = service.create_portfolio(tenant_id, portfolio_name, portfolio_id=portfolio_id, conn=conn)
+                    logger.info(f"Created portfolio: {portfolio.id} with tenant_id: {portfolio.tenant_id}")
 
                 logger.info(f"Using portfolio: {portfolio.id} - {portfolio.name}")
                 
@@ -107,6 +109,7 @@ def import_ibkr_csv(portfolio_id: UUID, portfolio_name: str, csv_file_path: str)
                     trades=trades,
                     dividends=dividends,
                     positions=positions,
+                    forex_balances=forex_balances,
                     conn=conn
                 )
                 
@@ -125,10 +128,12 @@ def import_ibkr_csv(portfolio_id: UUID, portfolio_name: str, csv_file_path: str)
                     
                     # Show results (outside transaction)
                     holdings = service.get_equity_holdings(portfolio.id, conn=conn)
+                    cash_holdings = service.get_cash_holdings(portfolio.id, conn=conn)
                     activities = service.get_activity_entries(portfolio.id, conn=conn)
                     
                     logger.info(f"Import results:")
                     logger.info(f"  - {len(holdings)} equity holdings") 
+                    logger.info(f"  - {len(cash_holdings)} cash holdings")
                     logger.info(f"  - {len(activities)} activity entries")
                     
                     return True
@@ -164,6 +169,11 @@ def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Import IBKR CSV file into a portfolio")
     parser.add_argument(
+        "--tenant-id", 
+        required=True, 
+        help="UUID of the tenant that owns this portfolio"
+    )
+    parser.add_argument(
         "--portfolio-id", 
         required=True, 
         help="UUID of the portfolio to import into"
@@ -182,12 +192,18 @@ def main():
     args = parser.parse_args()
     
     try:
+        tenant_id = UUID(args.tenant_id)
+    except ValueError:
+        print(f"Error: Invalid tenant ID: {args.tenant_id}")
+        sys.exit(1)
+        
+    try:
         portfolio_id = UUID(args.portfolio_id)
     except ValueError:
         print(f"Error: Invalid portfolio ID: {args.portfolio_id}")
         sys.exit(1)
-    
-    success = import_ibkr_csv(portfolio_id, args.portfolio_name, args.csv_file)
+
+    success = import_ibkr_csv(portfolio_id, args.portfolio_name, tenant_id, args.csv_file)
     
     if success:
         print("Import completed successfully")

@@ -87,6 +87,34 @@ class IbkrOpenPositionsHandler(CsvSectionHandler):
         }
         self.positions.append(position)
 
+class IbkrForexBalancesHandler(CsvSectionHandler):
+    def __init__(self):
+        self.forex_balances: List[dict] = []
+
+    def handle_row(self, row: dict):
+        # Only process rows with currency and quantity (skip Total rows)
+        if not row.get("currency") or not row.get("quantity") or row.get("currency") == "":
+            return
+        
+        # In IBKR forex balances, the 'description' field contains the actual currency
+        # while 'currency' field shows the base currency (usually CAD)
+        actual_currency = row.get("description") or row.get("currency")
+        
+        forex_balance = {
+            "asset_category": row.get("asset_category"),
+            "currency": actual_currency,  # Use description as the actual currency
+            "base_currency": row.get("currency"),  # The original currency column
+            "description": row.get("description"),
+            "quantity": parse_float(row.get("quantity")),
+            "cost_price": parse_float(row.get("cost_price")),
+            "cost_basis_in_cad": parse_float(row.get("cost_basis_in_cad")),
+            "close_price": parse_float(row.get("close_price")),
+            "value_in_cad": parse_float(row.get("value_in_cad")),
+            "unrealized_pl_in_cad": parse_float(row.get("unrealized_p_l_in_cad")),
+            "code": row.get("code"),
+        }
+        self.forex_balances.append(forex_balance)
+
 def ibkr_section_header_detector(row: List[str]) -> Optional[str]:
     if len(row) > 1 and row[1].strip().lower() == 'header':
         return row[0].strip()
@@ -105,6 +133,7 @@ class IbkrCsvParser(BaseCSVParser):
                 "Dividends": IbkrDividendsHandler(),
                 "Open Positions": IbkrOpenPositionsHandler(),
                 "Statement": IbkrStatementHandler(),
+                "Forex Balances": IbkrForexBalancesHandler(),
             }
         super().__init__(
             section_handlers=section_handlers,
@@ -134,7 +163,11 @@ class IbkrCsvParser(BaseCSVParser):
         handler = self.section_handlers.get("Statement")
         return handler.statement_metadata if handler else {}
 
-
+    @property
+    def forex_balances(self):
+        handler = self.section_handlers.get("Forex Balances")
+        return handler.forex_balances if handler else []
+    
     def _parse_section_trades(self, rows, handler):
         self._parse_section_common(
             rows,
@@ -269,6 +302,223 @@ class IbkrCsvParser(BaseCSVParser):
                     self.logger.info(f"{p['symbol']} {p['quantity']} {p['currency']} @ {p['cost_price']} (Cost Basis: {p['cost_basis']}) | Close: {p['close_price']} | Value: {p['value']} | UPL: {p['unrealized_pl']}")
             else:
                 self.logger.info("No open positions found.")
+        if 'forex_balances' in sections:
+            self.logger.info("=== Forex Balances ===")
+            if self.forex_balances:
+                for f in self.forex_balances:
+                    self.logger.info(f"{f['currency']} {f['quantity']} @ {f['cost_price']} (Cost Basis in CAD: {f['cost_basis_in_cad']}) | Close: {f['close_price']} | Value in CAD: {f['value_in_cad']} | UPL in CAD: {f['unrealized_pl_in_cad']}")
+            else:
+                self.logger.info("No forex balances found.")
+
+    def parse(self, file_path: str):
+        """
+        Per-section parsing for IBKR's multi-section CSV format. Each section is parsed by a dedicated method for robustness.
+        """
+        import csv
+        with open(file_path, newline='', encoding='utf-8-sig') as f:
+            reader = list(csv.reader(f))
+        # Find all section start indices
+        section_indices = []
+        for idx, row in enumerate(reader):
+            if len(row) > 1 and row[1].strip().lower() == 'header':
+                section_indices.append(idx)
+        section_indices.append(len(reader))  # Sentinel for last section
+
+        for i in range(len(section_indices) - 1):
+            start = section_indices[i]
+            end = section_indices[i+1]
+            section_row = reader[start]
+            section_name = section_row[0].strip()
+            if section_name in self.section_handlers:
+                parse_method = getattr(self, f'_parse_section_{section_name.lower().replace(" ", "_")}', None)
+                if parse_method:
+                    self.logger.debug(f"[IBKR DEBUG] Using custom parser for section '{section_name}'")
+                    parse_method(reader[start:end], self.section_handlers[section_name])
+                else:
+                    self.logger.debug(f"[IBKR DEBUG] Using generic parser for section '{section_name}'")
+                    self._parse_section_generic(reader[start:end], self.section_handlers[section_name])
+        if self.errors and self.strict:
+            raise RuntimeError(f"Parsing failed with errors: {self.errors}")
+        return self
+
+    def _parse_section_generic(self, rows, handler):
+        def normalize_field(field):
+            return field.strip().lower().replace(' ', '_').replace('/', '_')
+        header = None
+        normalized_header = None
+        for row_num, row in enumerate(rows):
+            if not any(cell.strip() for cell in row):
+                continue
+            row_type = row[1].strip() if len(row) > 1 else None
+            if row_type == 'Header':
+                header = row[2:]
+                normalized_header = [normalize_field(h) for h in header]
+                continue
+            if row_type == 'Data':
+                if not header:
+                    continue
+                data_row = row[2:]
+                if len(data_row) != len(header):
+                    continue
+                data = dict(zip(normalized_header, data_row))
+                handler.handle_row(data)
+
+    def _parse_section_forex_balances(self, rows, handler):
+        self._parse_section_common(
+            rows,
+            handler,
+            summary_row_check=lambda row: (row[2].strip().lower().startswith('total')) if len(row) > 2 else False,
+            header_debug_label="Forex Balances"
+        )
+
+    def pretty_print(self, sections=None):
+        """
+        Pretty print the parsed IBKR CSV data.
+        If sections is None, print all. Otherwise, print only the specified sections (list of str).
+        """
+        if sections is None:
+            sections = ['statement', 'trades', 'dividends', 'positions']
+        if 'statement' in sections or 'meta' in sections:
+            self.logger.info("=== Statement Metadata ===")
+            meta = self.meta
+            if meta:
+                for k, v in meta.items():
+                    self.logger.info(f"{k}: {v}")
+            else:
+                self.logger.info("No statement metadata found.")
+        if 'trades' in sections:
+            self.logger.info("=== Trades ===")
+            if self.trades:
+                for t in self.trades:
+                    self.logger.info(f"{t['datetime']} {t['symbol']} {t['quantity']} @ {t['t_price']} {t['currency']} | Proceeds: {t['proceeds']} | Comm: {t['commission']} | Realized P/L: {t['realized_pl']}")
+            else:
+                self.logger.info("No trades found.")
+        if 'dividends' in sections:
+            self.logger.info("=== Dividends ===")
+            if self.dividends:
+                for d in self.dividends:
+                    self.logger.info(f"{d['date']} {d.get('description', '')} {d['amount']} {d['currency']}")
+            else:
+                self.logger.info("No dividends found.")
+        if 'positions' in sections:
+            self.logger.info("=== Open Positions ===")
+            if self.positions:
+                for p in self.positions:
+                    self.logger.info(f"{p['symbol']} {p['quantity']} {p['currency']} @ {p['cost_price']} (Cost Basis: {p['cost_basis']}) | Close: {p['close_price']} | Value: {p['value']} | UPL: {p['unrealized_pl']}")
+            else:
+                self.logger.info("No open positions found.")
+        if 'forex_balances' in sections:
+            self.logger.info("=== Forex Balances ===")
+            if self.forex_balances:
+                for f in self.forex_balances:
+                    self.logger.info(f"{f['currency']} {f['quantity']} @ {f['cost_price']} (Cost Basis in CAD: {f['cost_basis_in_cad']}) | Close: {f['close_price']} | Value in CAD: {f['value_in_cad']} | UPL in CAD: {f['unrealized_pl_in_cad']}")
+            else:
+                self.logger.info("No forex balances found.")
+
+    def parse(self, file_path: str):
+        """
+        Per-section parsing for IBKR's multi-section CSV format. Each section is parsed by a dedicated method for robustness.
+        """
+        import csv
+        with open(file_path, newline='', encoding='utf-8-sig') as f:
+            reader = list(csv.reader(f))
+        # Find all section start indices
+        section_indices = []
+        for idx, row in enumerate(reader):
+            if len(row) > 1 and row[1].strip().lower() == 'header':
+                section_indices.append(idx)
+        section_indices.append(len(reader))  # Sentinel for last section
+
+        for i in range(len(section_indices) - 1):
+            start = section_indices[i]
+            end = section_indices[i+1]
+            section_row = reader[start]
+            section_name = section_row[0].strip()
+            if section_name in self.section_handlers:
+                parse_method = getattr(self, f'_parse_section_{section_name.lower().replace(" ", "_")}', None)
+                if parse_method:
+                    self.logger.debug(f"[IBKR DEBUG] Using custom parser for section '{section_name}'")
+                    parse_method(reader[start:end], self.section_handlers[section_name])
+                else:
+                    self.logger.debug(f"[IBKR DEBUG] Using generic parser for section '{section_name}'")
+                    self._parse_section_generic(reader[start:end], self.section_handlers[section_name])
+        if self.errors and self.strict:
+            raise RuntimeError(f"Parsing failed with errors: {self.errors}")
+        return self
+
+    def _parse_section_generic(self, rows, handler):
+        def normalize_field(field):
+            return field.strip().lower().replace(' ', '_').replace('/', '_')
+        header = None
+        normalized_header = None
+        for row_num, row in enumerate(rows):
+            if not any(cell.strip() for cell in row):
+                continue
+            row_type = row[1].strip() if len(row) > 1 else None
+            if row_type == 'Header':
+                header = row[2:]
+                normalized_header = [normalize_field(h) for h in header]
+                continue
+            if row_type == 'Data':
+                if not header:
+                    continue
+                data_row = row[2:]
+                if len(data_row) != len(header):
+                    continue
+                data = dict(zip(normalized_header, data_row))
+                handler.handle_row(data)
+
+    def _parse_section_forex_balances(self, rows, handler):
+        self._parse_section_common(
+            rows,
+            handler,
+            summary_row_check=lambda row: (row[2].strip().lower().startswith('total')) if len(row) > 2 else False,
+            header_debug_label="Forex Balances"
+        )
+
+    def pretty_print(self, sections=None):
+        """
+        Pretty print the parsed IBKR CSV data.
+        If sections is None, print all. Otherwise, print only the specified sections (list of str).
+        """
+        if sections is None:
+            sections = ['statement', 'trades', 'dividends', 'positions']
+        if 'statement' in sections or 'meta' in sections:
+            self.logger.info("=== Statement Metadata ===")
+            meta = self.meta
+            if meta:
+                for k, v in meta.items():
+                    self.logger.info(f"{k}: {v}")
+            else:
+                self.logger.info("No statement metadata found.")
+        if 'trades' in sections:
+            self.logger.info("=== Trades ===")
+            if self.trades:
+                for t in self.trades:
+                    self.logger.info(f"{t['datetime']} {t['symbol']} {t['quantity']} @ {t['t_price']} {t['currency']} | Proceeds: {t['proceeds']} | Comm: {t['commission']} | Realized P/L: {t['realized_pl']}")
+            else:
+                self.logger.info("No trades found.")
+        if 'dividends' in sections:
+            self.logger.info("=== Dividends ===")
+            if self.dividends:
+                for d in self.dividends:
+                    self.logger.info(f"{d['date']} {d.get('description', '')} {d['amount']} {d['currency']}")
+            else:
+                self.logger.info("No dividends found.")
+        if 'positions' in sections:
+            self.logger.info("=== Open Positions ===")
+            if self.positions:
+                for p in self.positions:
+                    self.logger.info(f"{p['symbol']} {p['quantity']} {p['currency']} @ {p['cost_price']} (Cost Basis: {p['cost_basis']}) | Close: {p['close_price']} | Value: {p['value']} | UPL: {p['unrealized_pl']}")
+            else:
+                self.logger.info("No open positions found.")
+        if 'forex_balances' in sections:
+            self.logger.info("=== Forex Balances ===")
+            if self.forex_balances:
+                for f in self.forex_balances:
+                    self.logger.info(f"{f['currency']} {f['quantity']} @ {f['cost_price']} (Cost Basis in CAD: {f['cost_basis_in_cad']}) | Close: {f['close_price']} | Value in CAD: {f['value_in_cad']} | UPL in CAD: {f['unrealized_pl_in_cad']}")
+            else:
+                self.logger.info("No forex balances found.")
 
     def parse(self, file_path: str):
         """

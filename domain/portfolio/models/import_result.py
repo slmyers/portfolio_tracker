@@ -16,8 +16,10 @@ class ImportResult:
     trades_imported: int = 0
     dividends_imported: int = 0
     positions_imported: int = 0
+    forex_balances_imported: int = 0
     activity_entries_created: int = 0
     equity_holdings_created: int = 0
+    cash_holdings_created: int = 0
     equities_created: int = 0
     
     # Timing
@@ -34,6 +36,7 @@ class ImportResult:
     skipped_trades: int = 0
     skipped_dividends: int = 0
     skipped_positions: int = 0
+    skipped_forex_balances: int = 0
     
     def __post_init__(self):
         """Initialize mutable default values."""
@@ -46,19 +49,19 @@ class ImportResult:
     def total_items_processed(self) -> int:
         """Total number of items that were successfully processed."""
         return (self.trades_imported + self.dividends_imported + 
-                self.positions_imported)
+                self.positions_imported + self.forex_balances_imported)
     
     @property
     def total_items_skipped(self) -> int:
         """Total number of items that were skipped."""
         return (self.skipped_trades + self.skipped_dividends + 
-                self.skipped_positions)
+                self.skipped_positions + self.skipped_forex_balances)
     
     @property
     def total_models_created(self) -> int:
         """Total number of new models created in the database."""
         return (self.activity_entries_created + self.equity_holdings_created + 
-                self.equities_created)
+                self.cash_holdings_created + self.equities_created)
     
     @property
     def duration_seconds(self) -> Optional[float]:

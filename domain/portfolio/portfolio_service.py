@@ -30,10 +30,10 @@ class PortfolioService:
         self.cash_holding_repo = cash_holding_repo
         self.activity_entry_repo = activity_entry_repo
 
-    def create_portfolio(self, tenant_id: UUID, name: str, conn=None) -> Portfolio:
+    def create_portfolio(self, tenant_id: UUID, name: str, portfolio_id: Optional[UUID] = None, conn=None) -> Portfolio:
         """Create a new portfolio within a transaction."""
         portfolio = Portfolio(
-            id=uuid4(),
+            id=portfolio_id or uuid4(),
             tenant_id=tenant_id,
             name=PortfolioName(name)
         )
@@ -246,13 +246,20 @@ class PortfolioService:
                 self.equity_repo.save(equity)
             equity_id = equity.id
 
+        # Determine currency from raw_data if available
+        currency = Currency.USD  # Default fallback
+        if raw_data and 'currency' in raw_data:
+            currency_str = raw_data['currency']
+            if currency_str and currency_str in Currency.__members__:
+                currency = Currency(currency_str)
+
         entry = ActivityReportEntry(
             id=uuid4(),
             portfolio_id=portfolio_id,
             equity_id=equity_id,
             activity_type=activity_type,
             amount=amount,
-            currency=Currency.USD,  # Default currency
+            currency=currency,
             date=date,
             raw_data=raw_data
         )
@@ -274,6 +281,7 @@ class PortfolioService:
         date: datetime,
         stock_symbol: Optional[str] = None,
         raw_data: Optional[dict] = None,
+        currency: Optional[Currency] = None,
         conn=None
     ) -> Optional[ActivityReportEntry]:
         """Add an activity report entry with connection support."""
@@ -294,13 +302,21 @@ class PortfolioService:
                 self.equity_repo.save(equity, conn=conn)
             equity_id = equity.id
 
+        # Determine currency from raw_data if not provided
+        if currency is None:
+            currency_str = raw_data.get('currency') if raw_data else None
+            if currency_str and currency_str in Currency.__members__:
+                currency = Currency(currency_str)
+            else:
+                currency = Currency.USD  # Default fallback
+
         entry = ActivityReportEntry(
             id=uuid4(),
             portfolio_id=portfolio_id,
             equity_id=equity_id,
             activity_type=activity_type,
             amount=amount,
-            currency=Currency.USD,  # Default currency
+            currency=currency,
             date=date,
             raw_data=raw_data
         )
@@ -382,7 +398,7 @@ class PortfolioService:
             conn=conn
         )
 
-    def import_from_ibkr(self, portfolio_id: UUID, trades: List[dict], dividends: List[dict], positions: List[dict], conn=None) -> ImportResult:
+    def import_from_ibkr(self, portfolio_id: UUID, trades: List[dict], dividends: List[dict], positions: List[dict], forex_balances: Optional[List[dict]] = None, conn=None) -> ImportResult:
         """Import data from IBKR CSV parser results."""
         # Initialize result object
         result = ImportResult(
@@ -512,6 +528,56 @@ class PortfolioService:
                     result.add_failed_item('position', position, f'Invalid numeric value: {str(e)}')
                 except Exception as e:
                     result.add_failed_item('position', position, str(e))
+
+            # Import forex balances as cash holdings
+            if forex_balances:
+                for forex_balance in forex_balances:
+                    if not forex_balance.get('currency') or not forex_balance.get('quantity'):
+                        result.add_warning(f"Skipping forex balance missing currency or quantity: {forex_balance}")
+                        continue
+                        
+                    try:
+                        currency_str = forex_balance['currency']
+                        quantity = Decimal(str(forex_balance['quantity']))
+                        
+                        # Convert currency string to Currency enum
+                        if currency_str not in Currency.__members__:
+                            result.add_warning(f"Unsupported currency '{currency_str}' in forex balance - skipping")
+                            continue
+                            
+                        currency = Currency(currency_str)
+                        
+                        # Get or create cash holding for this currency
+                        cash_holding = self.cash_holding_repo.find_by_portfolio_and_currency(
+                            portfolio_id, currency.value, conn=conn
+                        )
+                        
+                        if not cash_holding:
+                            # Create new cash holding
+                            cash_holding = CashHolding(
+                                id=uuid4(),
+                                portfolio_id=portfolio_id,
+                                currency=currency,
+                                balance=quantity
+                            )
+                            result.cash_holdings_created += 1
+                        else:
+                            # Update existing cash holding
+                            cash_holding.update_balance(quantity, "IBKR_FOREX_IMPORT")
+                        
+                        # Save the cash holding
+                        self.cash_holding_repo.save(cash_holding, conn=conn)
+                        
+                        # Add to portfolio (triggers validation and events)
+                        portfolio.add_cash_holding(cash_holding)
+                        
+                        # Update result counters
+                        result.forex_balances_imported += 1
+                        
+                    except ValueError as e:
+                        result.add_failed_item('forex_balance', forex_balance, f'Invalid numeric value: {str(e)}')
+                    except Exception as e:
+                        result.add_failed_item('forex_balance', forex_balance, str(e))
 
             # Mark portfolio as imported with total activity entries created
             portfolio.mark_imported('IBKR_CSV', result.activity_entries_created)

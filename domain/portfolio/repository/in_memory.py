@@ -274,7 +274,9 @@ class InMemoryCashHoldingRepository:
         conn=None
     ) -> Optional[CashHolding]:
         for row in self._holdings.values():
-            if row['portfolio_id'] == portfolio_id and row['currency'] == currency:
+            # Compare currency values since row['currency'] is a Currency enum
+            row_currency = row['currency'].value if hasattr(row['currency'], 'value') else str(row['currency'])
+            if row['portfolio_id'] == portfolio_id and row_currency == currency:
                 return self._row_to_cash_holding(row)
         return None
 
