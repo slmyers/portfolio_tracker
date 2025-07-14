@@ -1,10 +1,31 @@
 # Portfolio Service
 
-The `PortfolioService` provides the application layer for portfolio operations, coordinating between the domain models and repositories while maintaining transaction boundaries and business logic.
+The `PortfolioService` provides the application layer for portfolio operations, serving as the primary entry point for portfolio management. After a significant refactor, it now focuses on coordination and delegation while maintaining backward compatibility.
 
 ## Overview
 
-The Portfolio Service acts as a facade for portfolio operations, providing high-level methods that encapsulate complex domain logic and coordinate between multiple repositories. It ensures proper transaction handling, validation, and event propagation.
+The Portfolio Service has been refactored to follow Domain-Driven Design principles by:
+- Providing a single entry point for portfolio operations
+- Maintaining backward compatibility through delegation
+- Using composition with specialized services for complex operations
+- Focusing on coordination rather than implementation details
+
+The service now delegates specialized operations to focused services while maintaining a clean interface for core portfolio operations.
+
+## Architecture
+
+```
+PortfolioService
+├── HoldingsManagementService
+│   ├── add_equity_holding()
+│   ├── update_cash_balance()
+│   └── get_holdings()
+├── ActivityManagementService
+│   ├── add_activity_entry()
+│   └── get_activity_entries()
+└── IBKRImportService
+    └── import_from_ibkr()
+```
 
 ## Dependencies
 
@@ -16,9 +37,16 @@ The service depends on the following repositories via dependency injection:
 - `CashHoldingRepository`: Cash holdings management
 - `ActivityReportEntryRepository`: Activity report entry management
 
+Additionally, it composes with specialized services:
+- `HoldingsManagementService`: Handles equity and cash holdings operations
+- `ActivityManagementService`: Manages activity entries
+- `IBKRImportService`: Coordinates IBKR data import and portfolio updates
+
 ## Core Operations
 
-### Portfolio Management
+### Portfolio CRUD Operations
+
+The service maintains focused responsibility for core portfolio operations:
 
 ```python
 def create_portfolio(self, tenant_id: UUID, name: str, portfolio_id: Optional[UUID] = None, conn=None) -> Portfolio
@@ -28,22 +56,33 @@ def rename_portfolio(self, portfolio_id: UUID, new_name: str, conn=None) -> bool
 def delete_portfolio(self, portfolio_id: UUID, conn=None) -> bool
 ```
 
-### Holdings Management
+### Primary Data Import Entry Point
+
+The main method for modifying portfolio holdings:
+
+```python
+def import_from_ibkr(self, portfolio_id: UUID, trades: List[dict], dividends: List[dict], 
+                    positions: List[dict], forex_balances: List[dict], conn=None) -> ImportResult
+```
+
+This method serves as the single entry point for portfolio modifications, delegating to `IBKRImportService` for coordination between holdings and activity management.
+
+### Backward Compatibility Methods
+
+These methods are maintained for backward compatibility but delegate to specialized services:
+
+#### Holdings Management (Delegated to HoldingsManagementService)
 
 ```python
 def add_equity_holding(self, portfolio_id: UUID, symbol: str, quantity: Decimal, 
                       cost_basis: Decimal, exchange: str = "NASDAQ", conn=None) -> Optional[EquityHolding]
-def update_equity_holding(self, holding_id: UUID, quantity: Optional[Decimal] = None,
-                         cost_basis: Optional[Decimal] = None, 
-                         current_value: Optional[Decimal] = None, conn=None) -> bool
-def remove_equity_holding(self, holding_id: UUID, conn=None) -> bool
-def get_equity_holdings(self, portfolio_id: UUID, conn=None) -> List[EquityHolding]
 def update_cash_balance(self, portfolio_id: UUID, new_balance_or_currency, 
                        reason_or_new_balance, reason: str = "manual", conn=None) -> bool
+def get_equity_holdings(self, portfolio_id: UUID, conn=None) -> List[EquityHolding]
 def get_cash_holdings(self, portfolio_id: UUID, conn=None) -> List[CashHolding]
 ```
 
-### Activity Management
+#### Activity Management (Delegated to ActivityManagementService)
 
 ```python
 def add_activity_entry(self, portfolio_id: UUID, activity_type: str, amount: Decimal,
@@ -53,62 +92,83 @@ def get_activity_entries(self, portfolio_id: UUID, activity_type: Optional[str] 
                         limit: int = 100, offset: int = 0, conn=None) -> List[ActivityReportEntry]
 ```
 
-### Import Operations
+## Key Architectural Changes
 
-```python
-def import_from_ibkr(self, portfolio_id: UUID, trades: List[dict], 
-                    dividends: List[dict], positions: List[dict], conn=None) -> ImportResult
-```
+### 1. **Service Composition**
 
-## Key Features
+The refactored service uses composition to delegate specialized operations:
 
-### 1. **Transaction Support**
+- **HoldingsManagementService**: Handles all equity and cash holdings operations
+- **ActivityManagementService**: Manages activity report entries
+- **IBKRImportService**: Coordinates comprehensive IBKR data import
 
-All methods accept an optional `conn` parameter to support transaction management:
+### 2. **Single Entry Point for Modifications**
+
+`import_from_ibkr()` serves as the primary method for portfolio modifications, ensuring:
+- Consistent data import patterns
+- Comprehensive error handling and reporting
+- Coordination between holdings and activity management
+- Detailed success/failure tracking
+
+### 3. **Backward Compatibility**
+
+Existing methods are preserved to avoid breaking changes, but internally delegate to specialized services. This allows gradual migration while maintaining existing functionality.
+
+### 4. **Transaction Support**
+
+All methods support transaction management through the optional `conn` parameter:
 
 ```python
 # Single operation
 portfolio = service.create_portfolio(tenant_id, "My Portfolio")
 
-# Multiple operations in transaction
+# Multiple operations in transaction  
 with db.transaction() as conn:
     portfolio = service.create_portfolio(tenant_id, "My Portfolio", conn=conn)
-    service.add_equity_holding(portfolio.id, "AAPL", Decimal('100'), Decimal('10000'), conn=conn)
+    result = service.import_from_ibkr(portfolio.id, trades, dividends, positions, forex_balances, conn=conn)
 ```
 
-### 2. **Auto-Entity Creation**
+## IBKR Import Integration
 
-The service automatically creates missing entities when needed:
-
-- **Equities**: When adding holdings with new symbols, the service creates the equity entity
-- **Cash Holdings**: Creates default CAD cash holding when portfolios are created
-
-### 3. **IBKR Import Integration**
-
-The `import_from_ibkr` method provides comprehensive import functionality:
+The `import_from_ibkr` method provides comprehensive import functionality through delegation to `IBKRImportService`:
 
 - **Trades**: Imported as activity entries with automatic equity creation
-- **Dividends**: Imported as activity entries 
-- **Positions**: Converted to equity holdings
+- **Dividends**: Imported as activity entries with currency handling
+- **Positions**: Converted to equity holdings with automatic equity creation
+- **Forex Balances**: Imported as cash holdings with currency validation
 - **Error Handling**: Returns detailed `ImportResult` with success/failure counts and error details
 
-#### Import Result Structure
+### Import Result Structure
 
 ```python
 @dataclass
 class ImportResult:
-    success: bool
-    import_source: str
-    portfolio_id: str
-    started_at: datetime
+    success: bool = True
+    import_source: str = "IBKR_CSV"
+    portfolio_id: Optional[str] = None
+    started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     
-    # Counts
+    # Success counts
     trades_imported: int = 0
     dividends_imported: int = 0
     positions_imported: int = 0
+    forex_balances_imported: int = 0
     activity_entries_created: int = 0
     equity_holdings_created: int = 0
+    equities_created: int = 0
+    cash_holdings_created: int = 0
+    
+    # Error tracking
+    error_message: Optional[str] = None
+    error_type: Optional[str] = None
+    failed_items: List[dict] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    
+    # Skip tracking
+    skipped_trades: int = 0
+    skipped_positions: int = 0
+```
     equities_created: int = 0
     
     # Failures
