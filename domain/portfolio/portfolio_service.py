@@ -330,53 +330,6 @@ class PortfolioService:
         
         return entry
 
-    def _add_equity_holding_with_conn(
-        self, 
-        portfolio_id: UUID, 
-        symbol: str, 
-        quantity: Decimal, 
-        cost_basis: Decimal,
-        exchange: str = "NASDAQ",
-        conn=None
-    ) -> Optional[EquityHolding]:
-        """Add an equity holding with connection support."""
-        portfolio = self.portfolio_repo.get(portfolio_id, conn=conn)
-        if not portfolio:
-            return None
-        
-        # Get or create equity
-        equity = self.equity_repo.find_by_symbol(symbol, exchange, conn=conn)
-        if not equity:
-            equity = Equity(
-                id=uuid4(),
-                symbol=symbol,
-                exchange=Exchange(exchange) if exchange in Exchange.__members__ else None
-            )
-            self.equity_repo.save(equity, conn=conn)
-        
-        # Check for duplicate holding
-        existing_holding = self.equity_holding_repo.find_by_portfolio_and_equity(
-            portfolio_id, equity.id, conn=conn
-        )
-        if existing_holding:
-            raise DuplicateHoldingError(portfolio_id, equity.id)
-        
-        # Create holding
-        holding = EquityHolding(
-            id=uuid4(),
-            portfolio_id=portfolio_id,
-            equity_id=equity.id,
-            quantity=quantity,
-            cost_basis=cost_basis
-        )
-        
-        # Add to portfolio and save
-        portfolio.add_equity_holding(holding, self.equity_repo)
-        self.equity_holding_repo.save(holding, conn=conn)
-        self.portfolio_repo.save(portfolio, conn=conn)
-        
-        return holding
-
     def get_holdings(self, portfolio_id: UUID, limit: int = 100, offset: int = 0) -> List[EquityHolding]:
         """Get holdings for a portfolio."""
         return self.equity_holding_repo.find_by_portfolio_id(portfolio_id, limit=limit, offset=offset)
@@ -504,7 +457,7 @@ class PortfolioService:
                     equity_created = existing_equity is None
                     
                     # Try to add the holding (this will create the equity if needed)
-                    holding = self._add_equity_holding_with_conn(
+                    holding = self.add_equity_holding(
                         portfolio_id=portfolio_id,
                         symbol=position['symbol'],
                         quantity=quantity,
