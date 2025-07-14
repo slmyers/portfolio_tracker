@@ -5,11 +5,10 @@ from uuid import uuid4
 from decimal import Decimal
 
 from domain.portfolio.portfolio_service import PortfolioService
-from domain.portfolio.repository.in_memory import (
-    InMemoryPortfolioRepository, InMemoryEquityRepository, 
-    InMemoryEquityHoldingRepository, InMemoryCashHoldingRepository,
-    InMemoryActivityReportEntryRepository
-)
+from tests.repositories.portfolio import TestPortfolioRepository
+from tests.repositories.equity import TestEquityRepository
+from tests.repositories.holdings import TestEquityHoldingRepository, TestCashHoldingRepository
+from tests.repositories.activity_report import TestActivityReportEntryRepository
 
 
 class ForexBalancesImportTest(unittest.TestCase):
@@ -17,11 +16,11 @@ class ForexBalancesImportTest(unittest.TestCase):
 
     def setUp(self):
         """Set up test dependencies."""
-        self.portfolio_repo = InMemoryPortfolioRepository()
-        self.equity_repo = InMemoryEquityRepository()
-        self.equity_holding_repo = InMemoryEquityHoldingRepository()
-        self.cash_holding_repo = InMemoryCashHoldingRepository()
-        self.activity_entry_repo = InMemoryActivityReportEntryRepository()
+        self.portfolio_repo = TestPortfolioRepository()
+        self.equity_repo = TestEquityRepository()
+        self.equity_holding_repo = TestEquityHoldingRepository()
+        self.cash_holding_repo = TestCashHoldingRepository()
+        self.activity_entry_repo = TestActivityReportEntryRepository()
         
         self.service = PortfolioService(
             portfolio_repo=self.portfolio_repo,

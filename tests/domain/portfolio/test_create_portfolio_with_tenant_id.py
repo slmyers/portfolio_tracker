@@ -4,22 +4,19 @@ Test for Issue 3: Creating portfolio with separate tenant_id and portfolio_id
 import unittest
 from uuid import uuid4
 from domain.portfolio.portfolio_service import PortfolioService
-from domain.portfolio.repository.in_memory import (
-    InMemoryPortfolioRepository,
-    InMemoryEquityRepository, 
-    InMemoryEquityHoldingRepository,
-    InMemoryCashHoldingRepository,
-    InMemoryActivityReportEntryRepository
-)
+from tests.repositories.portfolio import TestPortfolioRepository
+from tests.repositories.equity import TestEquityRepository
+from tests.repositories.holdings import TestEquityHoldingRepository, TestCashHoldingRepository
+from tests.repositories.activity_report import TestActivityReportEntryRepository
 
 
 class TestCreatePortfolioWithTenantId(unittest.TestCase):
     def setUp(self):
-        self.equity_repo = InMemoryEquityRepository()
-        self.equity_holding_repo = InMemoryEquityHoldingRepository()
-        self.cash_holding_repo = InMemoryCashHoldingRepository()
-        self.portfolio_repo = InMemoryPortfolioRepository(self.cash_holding_repo)
-        self.activity_repo = InMemoryActivityReportEntryRepository()
+        self.equity_repo = TestEquityRepository()
+        self.equity_holding_repo = TestEquityHoldingRepository()
+        self.cash_holding_repo = TestCashHoldingRepository()
+        self.portfolio_repo = TestPortfolioRepository(self.cash_holding_repo)
+        self.activity_repo = TestActivityReportEntryRepository()
         
         self.service = PortfolioService(
             self.portfolio_repo,

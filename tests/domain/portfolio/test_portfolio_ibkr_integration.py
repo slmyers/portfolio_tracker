@@ -2,11 +2,10 @@ import unittest
 from uuid import uuid4
 from decimal import Decimal
 from domain.portfolio.portfolio_service import PortfolioService
-from domain.portfolio.repository.in_memory import (
-    InMemoryPortfolioRepository, InMemoryEquityRepository,
-    InMemoryEquityHoldingRepository, InMemoryCashHoldingRepository,
-    InMemoryActivityReportEntryRepository
-)
+from tests.repositories.portfolio import TestPortfolioRepository
+from tests.repositories.equity import TestEquityRepository
+from tests.repositories.holdings import TestEquityHoldingRepository, TestCashHoldingRepository
+from tests.repositories.activity_report import TestActivityReportEntryRepository
 from core.csv.ibkr import IbkrCsvParser
 import tempfile
 import os
@@ -22,11 +21,11 @@ class MockLogger:
 
 class PortfolioIbkrIntegrationTest(unittest.TestCase):
     def setUp(self):
-        self.portfolio_repo = InMemoryPortfolioRepository()
-        self.equity_repo = InMemoryEquityRepository()
-        self.equity_holding_repo = InMemoryEquityHoldingRepository()
-        self.cash_holding_repo = InMemoryCashHoldingRepository()
-        self.activity_entry_repo = InMemoryActivityReportEntryRepository()
+        self.portfolio_repo = TestPortfolioRepository()
+        self.equity_repo = TestEquityRepository()
+        self.equity_holding_repo = TestEquityHoldingRepository()
+        self.cash_holding_repo = TestCashHoldingRepository()
+        self.activity_entry_repo = TestActivityReportEntryRepository()
         
         self.service = PortfolioService(
             self.portfolio_repo,
@@ -137,6 +136,17 @@ Open Positions,Data,Total,,,,,,,147525.00,,151262.50,3737.50,'''
             holdings = self.service.get_equity_holdings(self.portfolio.id)
             self.assertEqual(len(holdings), 2)  # AAPL and GOOGL holdings
             
+            # Use new test repository assertion utilities
+            self.assertTrue(self.equity_holding_repo.assert_holdings_count_for_portfolio(self.portfolio.id, 2))
+            self.assertTrue(self.activity_entry_repo.assert_entries_count_for_portfolio(self.portfolio.id, 6))
+            self.assertTrue(self.activity_entry_repo.assert_entries_count_by_type(self.portfolio.id, 'TRADE', 3))
+            self.assertTrue(self.activity_entry_repo.assert_entries_count_by_type(self.portfolio.id, 'DIVIDEND', 3))
+            
+            # Verify method call tracking
+            self.assertTrue(self.equity_repo.assert_method_called('save'))  # Stocks were saved
+            self.assertTrue(self.equity_repo.assert_method_called('find_by_symbol'))  # Symbol lookups occurred
+            self.assertTrue(self.portfolio_repo.assert_method_called('get'))  # Portfolio was retrieved
+            
             # Check specific holding details
             aapl_holding = next((h for h in holdings if self.equity_repo.get(h.equity_id).symbol == 'AAPL'), None)
             googl_holding = next((h for h in holdings if self.equity_repo.get(h.equity_id).symbol == 'GOOGL'), None)
@@ -168,6 +178,14 @@ Open Positions,Data,Total,,,,,,,147525.00,,151262.50,3737.50,'''
                 parser.positions
             )
             self.assertTrue(result.success)
+            
+            # Test repository call history and assertions
+            self.assertTrue(self.portfolio_repo.assert_method_called('get'))
+            self.assertTrue(self.equity_repo.assert_method_called('save'))
+            self.assertTrue(self.activity_entry_repo.assert_method_called('save'))
+            
+            # Clear call history for isolated testing
+            self.equity_repo.clear_call_history()
             
             # Try to add a duplicate holding manually (should fail)
             from domain.portfolio.portfolio_errors import DuplicateHoldingError

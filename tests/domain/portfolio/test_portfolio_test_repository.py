@@ -5,18 +5,15 @@ from datetime import datetime
 from domain.portfolio.models.portfolio import Portfolio, PortfolioName
 from domain.portfolio.models.holding import Equity, EquityHolding, CashHolding
 from domain.portfolio.models.activity_report_entry import ActivityReportEntry
-from domain.portfolio.repository.in_memory import (
-    InMemoryPortfolioRepository, 
-    InMemoryEquityRepository,
-    InMemoryEquityHoldingRepository,
-    InMemoryCashHoldingRepository,
-    InMemoryActivityReportEntryRepository,
-)
+from tests.repositories.portfolio import TestPortfolioRepository
+from tests.repositories.equity import TestEquityRepository
+from tests.repositories.holdings import TestEquityHoldingRepository, TestCashHoldingRepository
+from tests.repositories.activity_report import TestActivityReportEntryRepository
 from domain.portfolio.portfolio_errors import DuplicateHoldingError
 
-class InMemoryPortfolioRepositoryTest(unittest.TestCase):
+class PortfolioTestRepositoryTest(unittest.TestCase):
     def setUp(self):
-        self.repo = InMemoryPortfolioRepository()
+        self.repo = TestPortfolioRepository()
         self.portfolio_id = uuid4()
         self.tenant_id = uuid4()
         self.portfolio = Portfolio(
@@ -90,14 +87,17 @@ class InMemoryPortfolioRepositoryTest(unittest.TestCase):
 
     def test_exists(self):
         # Test existing portfolio
-        self.assertTrue(self.repo.exists(self.portfolio_id))
+        self.assertTrue(self.repo.assert_portfolio_exists(self.portfolio_id))
         
         # Test nonexistent portfolio
-        self.assertFalse(self.repo.exists(uuid4()))
+        self.assertFalse(self.repo.assert_portfolio_exists(uuid4()))
+        
+        # Test call history
+        self.assertTrue(self.repo.assert_method_called('exists', 2))
 
 class InMemoryEquityHoldingRepositoryTest(unittest.TestCase):
     def setUp(self):
-        self.repo = InMemoryEquityHoldingRepository()
+        self.repo = TestEquityHoldingRepository()
         self.portfolio_id = uuid4()
         self.equity_id = uuid4()
         self.holding_id = uuid4()
@@ -225,7 +225,7 @@ class InMemoryEquityHoldingRepositoryTest(unittest.TestCase):
 
 class InMemoryCashHoldingRepositoryTest(unittest.TestCase):
     def setUp(self):
-        self.repo = InMemoryCashHoldingRepository()
+        self.repo = TestCashHoldingRepository()
         self.portfolio_id = uuid4()
         self.holding_id = uuid4()
         self.cash_holding = CashHolding(
@@ -291,7 +291,7 @@ class InMemoryCashHoldingRepositoryTest(unittest.TestCase):
 
 class InMemoryActivityReportEntryRepositoryTest(unittest.TestCase):
     def setUp(self):
-        self.repo = InMemoryActivityReportEntryRepository()
+        self.repo = TestActivityReportEntryRepository()
         self.portfolio_id = uuid4()
         self.equity_id = uuid4()
         self.entry_id = uuid4()
@@ -412,7 +412,7 @@ class InMemoryActivityReportEntryRepositoryTest(unittest.TestCase):
 
 class InMemoryEquityRepositoryTest(unittest.TestCase):
     def setUp(self):
-        self.repo = InMemoryEquityRepository()
+        self.repo = TestEquityRepository()
         self.equity_id = uuid4()
         self.equity = Equity(
             id=self.equity_id,

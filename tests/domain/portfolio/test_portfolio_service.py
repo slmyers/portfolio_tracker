@@ -3,20 +3,19 @@ from uuid import uuid4
 from decimal import Decimal
 from datetime import datetime
 from domain.portfolio.portfolio_service import PortfolioService
-from domain.portfolio.repository.in_memory import (
-    InMemoryPortfolioRepository, InMemoryEquityRepository,
-    InMemoryEquityHoldingRepository, InMemoryCashHoldingRepository,
-    InMemoryActivityReportEntryRepository
-)
+from tests.repositories.portfolio import TestPortfolioRepository
+from tests.repositories.equity import TestEquityRepository
+from tests.repositories.holdings import TestEquityHoldingRepository, TestCashHoldingRepository
+from tests.repositories.activity_report import TestActivityReportEntryRepository
 from domain.portfolio.portfolio_errors import DuplicateHoldingError
 
 class PortfolioServiceTest(unittest.TestCase):
     def setUp(self):
-        self.equity_repo = InMemoryEquityRepository()
-        self.equity_holding_repo = InMemoryEquityHoldingRepository()
-        self.cash_holding_repo = InMemoryCashHoldingRepository()
-        self.portfolio_repo = InMemoryPortfolioRepository(self.cash_holding_repo)
-        self.activity_repo = InMemoryActivityReportEntryRepository()
+        self.equity_repo = TestEquityRepository()
+        self.equity_holding_repo = TestEquityHoldingRepository()
+        self.cash_holding_repo = TestCashHoldingRepository()
+        self.portfolio_repo = TestPortfolioRepository(self.cash_holding_repo)
+        self.activity_repo = TestActivityReportEntryRepository()
         
         self.service = PortfolioService(
             self.portfolio_repo,
@@ -39,6 +38,11 @@ class PortfolioServiceTest(unittest.TestCase):
         # Verify it's saved in repository
         saved_portfolio = self.portfolio_repo.get(portfolio.id)
         self.assertIsNotNone(saved_portfolio)
+        
+        # Use new test repository assertion utilities
+        self.assertTrue(self.portfolio_repo.assert_portfolio_exists(portfolio.id))
+        self.assertTrue(self.portfolio_repo.assert_method_called('save'))
+        self.assertTrue(self.portfolio_repo.assert_portfolio_count_for_tenant(self.tenant_id, 1))
 
     def test_get_portfolio(self):
         portfolio = self.service.create_portfolio(self.tenant_id, "Test Portfolio")
@@ -86,6 +90,12 @@ class PortfolioServiceTest(unittest.TestCase):
         # Verify holding was saved
         saved_holding = self.equity_holding_repo.get(holding.id)
         self.assertIsNotNone(saved_holding)
+        
+        # Use new test repository assertion utilities
+        self.assertTrue(self.equity_holding_repo.assert_holding_exists(holding.id))
+        self.assertTrue(self.equity_holding_repo.assert_holdings_count_for_portfolio(portfolio.id, 1))
+        self.assertTrue(self.equity_repo.assert_equity_exists(stock.id))
+        self.assertTrue(self.equity_repo.assert_method_called('save'))  # Stock was saved
 
     def test_add_holding_existing_stock(self):
         # First create a stock
@@ -170,6 +180,12 @@ class PortfolioServiceTest(unittest.TestCase):
         # Verify stock was created
         stock = self.equity_repo.find_by_symbol("AAPL", "NASDAQ")
         self.assertIsNotNone(stock)
+        
+        # Use new test repository assertion utilities
+        self.assertTrue(self.activity_repo.assert_entry_exists(entry.id))
+        self.assertTrue(self.activity_repo.assert_entries_count_for_portfolio(portfolio.id, 1))
+        self.assertTrue(self.activity_repo.assert_entries_count_by_type(portfolio.id, 'TRADE', 1))
+        self.assertTrue(self.equity_repo.assert_equity_by_symbol_exists('AAPL', 'NASDAQ'))
 
     def test_add_activity_entry_without_stock(self):
         portfolio = self.service.create_portfolio(self.tenant_id, "Test Portfolio")
@@ -291,6 +307,14 @@ class PortfolioServiceTest(unittest.TestCase):
         googl_stock = self.equity_repo.find_by_symbol('GOOGL', 'NASDAQ')
         self.assertIsNotNone(aapl_stock)
         self.assertIsNotNone(googl_stock)
+        
+        # Use new test repository assertion utilities for comprehensive validation
+        self.assertTrue(self.activity_repo.assert_entries_count_for_portfolio(portfolio.id, 3))
+        self.assertTrue(self.activity_repo.assert_entries_count_by_type(portfolio.id, 'TRADE', 2))
+        self.assertTrue(self.activity_repo.assert_entries_count_by_type(portfolio.id, 'DIVIDEND', 1))
+        self.assertTrue(self.equity_repo.assert_equity_count(2))  # AAPL and GOOGL
+        self.assertTrue(self.equity_repo.assert_method_called('save'))  # Stocks were saved
+        self.assertTrue(self.portfolio_repo.assert_method_called('get'))  # Portfolio was retrieved
 
     def test_import_from_ibkr_nonexistent_portfolio(self):
         result = self.service.import_from_ibkr(uuid4(), [], [], [])

@@ -10,11 +10,10 @@ from domain.portfolio.activity_management_service import ActivityManagementServi
 from domain.portfolio.models.portfolio import Portfolio, PortfolioName
 from domain.portfolio.models.enums import Currency
 from domain.portfolio.models.holding import CashHolding
-from domain.portfolio.repository.in_memory import (
-    InMemoryPortfolioRepository, InMemoryEquityRepository, 
-    InMemoryEquityHoldingRepository, InMemoryCashHoldingRepository,
-    InMemoryActivityReportEntryRepository
-)
+from tests.repositories.portfolio import TestPortfolioRepository
+from tests.repositories.equity import TestEquityRepository
+from tests.repositories.holdings import TestEquityHoldingRepository, TestCashHoldingRepository
+from tests.repositories.activity_report import TestActivityReportEntryRepository
 
 
 class IBKRImportServiceTest(unittest.TestCase):
@@ -22,11 +21,11 @@ class IBKRImportServiceTest(unittest.TestCase):
 
     def setUp(self):
         """Set up test dependencies."""
-        self.cash_holding_repo = InMemoryCashHoldingRepository()
-        self.portfolio_repo = InMemoryPortfolioRepository(self.cash_holding_repo)
-        self.equity_repo = InMemoryEquityRepository()
-        self.equity_holding_repo = InMemoryEquityHoldingRepository()
-        self.activity_entry_repo = InMemoryActivityReportEntryRepository()
+        self.cash_holding_repo = TestCashHoldingRepository()
+        self.portfolio_repo = TestPortfolioRepository(self.cash_holding_repo)
+        self.equity_repo = TestEquityRepository()
+        self.equity_holding_repo = TestEquityHoldingRepository()
+        self.activity_entry_repo = TestActivityReportEntryRepository()
         
         # Create specialized services
         self.holdings_service = HoldingsManagementService(
