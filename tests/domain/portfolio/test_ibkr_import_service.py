@@ -3,7 +3,6 @@
 import unittest
 from uuid import uuid4
 from decimal import Decimal
-from datetime import datetime
 
 from domain.portfolio.ibkr_import_service import IBKRImportService
 from domain.portfolio.holdings_management_service import HoldingsManagementService

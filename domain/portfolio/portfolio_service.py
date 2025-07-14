@@ -3,11 +3,10 @@ from decimal import Decimal
 from datetime import datetime
 from typing import Optional, List
 from .models.portfolio import Portfolio, PortfolioName
-from .models.holding import Equity, EquityHolding, CashHolding
+from .models.holding import EquityHolding, CashHolding
 from .models.activity_report_entry import ActivityReportEntry
-from .models.enums import Currency, Exchange
+from .models.enums import Currency
 from .models.import_result import ImportResult
-from .portfolio_errors import DuplicateHoldingError
 from .repository.base import (
     PortfolioRepository, EquityRepository, EquityHoldingRepository, 
     CashHoldingRepository, ActivityReportEntryRepository

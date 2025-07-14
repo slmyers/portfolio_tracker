@@ -8,7 +8,6 @@ from datetime import datetime
 from domain.portfolio.activity_management_service import ActivityManagementService
 from domain.portfolio.models.portfolio import Portfolio, PortfolioName
 from domain.portfolio.models.enums import Currency
-from domain.portfolio.models.holding import CashHolding
 from domain.portfolio.repository.in_memory import (
     InMemoryPortfolioRepository, InMemoryEquityRepository,
     InMemoryActivityReportEntryRepository, InMemoryCashHoldingRepository

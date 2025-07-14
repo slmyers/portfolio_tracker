@@ -75,8 +75,6 @@ class HoldingsManagementServiceTest(unittest.TestCase):
 
     def test_add_equity_holding_existing_stock(self):
         """Test adding holdings for existing stocks in different portfolios."""
-        # First create a stock in portfolio1
-        holding1 = self.service.add_equity_holding(self.portfolio.id, "AAPL", Decimal('50'), Decimal('500.00'))
         
         # Create second portfolio
         portfolio2 = Portfolio(
