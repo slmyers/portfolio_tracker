@@ -1,6 +1,8 @@
 from typing import Dict, Optional, List
 from core.csv.base import BaseCSVParser, CsvSectionHandler
 from datetime import datetime
+from core.csv.state_machine import CsvStateMachine
+from enum import Enum
 
 def parse_float(val):
     try:
@@ -36,8 +38,8 @@ class IbkrTradesHandler(CsvSectionHandler):
             "symbol": row.get("symbol"),
             "datetime": row.get("date_time"),
             "quantity": parse_float(row.get("quantity")),
-            "t_price": parse_float(row.get("t_price")),
-            "c_price": parse_float(row.get("c_price")),
+            "t_price": parse_float(row.get("t._price")),  # Handle normalized field name
+            "c_price": parse_float(row.get("c._price")),  # Handle normalized field name
             "proceeds": parse_float(row.get("proceeds")),
             "commission": parse_float(row.get("comm_fee")) or parse_float(row.get("comm_in_cad")),
             "basis": parse_float(row.get("basis")),
@@ -87,10 +89,45 @@ class IbkrOpenPositionsHandler(CsvSectionHandler):
         }
         self.positions.append(position)
 
+class IbkrForexBalancesHandler(CsvSectionHandler):
+    def __init__(self):
+        self.forex_balances: List[dict] = []
+
+    def handle_row(self, row: dict):
+        # Only process rows with currency and quantity (skip Total rows)
+        if not row.get("currency") or not row.get("quantity") or row.get("currency") == "":
+            return
+        
+        # In IBKR forex balances, the 'description' field contains the actual currency
+        # while 'currency' field shows the base currency (usually CAD)
+        actual_currency = row.get("description") or row.get("currency")
+        
+        forex_balance = {
+            "asset_category": row.get("asset_category"),
+            "currency": actual_currency,  # Use description as the actual currency
+            "base_currency": row.get("currency"),  # The original currency column
+            "description": row.get("description"),
+            "quantity": parse_float(row.get("quantity")),
+            "cost_price": parse_float(row.get("cost_price")),
+            "cost_basis_in_cad": parse_float(row.get("cost_basis_in_cad")),
+            "close_price": parse_float(row.get("close_price")),
+            "value_in_cad": parse_float(row.get("value_in_cad")),
+            "unrealized_pl_in_cad": parse_float(row.get("unrealized_p_l_in_cad")),
+            "code": row.get("code"),
+        }
+        self.forex_balances.append(forex_balance)
+
 def ibkr_section_header_detector(row: List[str]) -> Optional[str]:
     if len(row) > 1 and row[1].strip().lower() == 'header':
         return row[0].strip()
     return None
+
+class SectionNames(Enum):
+    TRADES = "Trades"
+    DIVIDENDS = "Dividends"
+    OPEN_POSITIONS = "Open Positions"
+    STATEMENT = "Statement"
+    FOREX_BALANCES = "Forex Balances"
 
 class IbkrCsvParser(BaseCSVParser):
     def __init__(
@@ -101,10 +138,11 @@ class IbkrCsvParser(BaseCSVParser):
     ):
         if section_handlers is None:
             section_handlers = {
-                "Trades": IbkrTradesHandler(),
-                "Dividends": IbkrDividendsHandler(),
-                "Open Positions": IbkrOpenPositionsHandler(),
-                "Statement": IbkrStatementHandler(),
+                SectionNames.TRADES.value: IbkrTradesHandler(),
+                SectionNames.DIVIDENDS.value: IbkrDividendsHandler(),
+                SectionNames.OPEN_POSITIONS.value: IbkrOpenPositionsHandler(),
+                SectionNames.STATEMENT.value: IbkrStatementHandler(),
+                SectionNames.FOREX_BALANCES.value: IbkrForexBalancesHandler(),
             }
         super().__init__(
             section_handlers=section_handlers,
@@ -112,68 +150,83 @@ class IbkrCsvParser(BaseCSVParser):
             section_header_detector=ibkr_section_header_detector,
             logger=logger,
         )
-        self.logger = logger
+        if logger is None:
+            self.logger = {
+                "info": print,
+                "debug": print,
+                "error": print,
+                "warning": print,
+            }
+        else:
+            self.logger = logger
+        
+        # Initialize state machine
+        self.state_machine = CsvStateMachine(self.logger)
 
     @property
     def trades(self):
-        handler = self.section_handlers.get("Trades")
+        handler = self.section_handlers.get(SectionNames.TRADES.value)
         return handler.trades if handler else []
 
     @property
     def dividends(self):
-        handler = self.section_handlers.get("Dividends")
+        handler = self.section_handlers.get(SectionNames.DIVIDENDS.value)
         return handler.dividends if handler else []
 
     @property
     def positions(self):
-        handler = self.section_handlers.get("Open Positions")
+        handler = self.section_handlers.get(SectionNames.OPEN_POSITIONS.value)
         return handler.positions if handler else []
     
     @property
     def meta(self):
-        handler = self.section_handlers.get("Statement")
+        handler = self.section_handlers.get(SectionNames.STATEMENT.value)
         return handler.statement_metadata if handler else {}
 
-
+    @property
+    def forex_balances(self):
+        handler = self.section_handlers.get(SectionNames.FOREX_BALANCES.value)
+        return handler.forex_balances if handler else []
+    
     def _parse_section_trades(self, rows, handler):
-        self._parse_section_common(
-            rows,
-            handler,
-            summary_row_check=lambda row: (row[2].strip().lower().startswith('total') or row[2].strip().lower().startswith('subtotal')) if len(row) > 2 else False,
-            header_debug_label="Trades"
-        )
+        self.state_machine.transition_to_section(SectionNames.TRADES.value)
+        self.state_machine.process_section(rows, handler)
 
     def _parse_section_open_positions(self, rows, handler):
-        self._parse_section_common(
-            rows,
-            handler,
-            summary_row_check=lambda row: (row[2].strip().lower().startswith('total') or row[2].strip().lower().startswith('subtotal')) if len(row) > 2 else False,
-            header_debug_label="Open Positions"
-        )
+        self.state_machine.transition_to_section(SectionNames.OPEN_POSITIONS.value)
+        self.state_machine.process_section(rows, handler)
 
     def _parse_section_dividends(self, rows, handler):
-        self._parse_section_common(
-            rows,
-            handler,
-            summary_row_check=lambda row: (row[2].strip().lower().startswith('total')) if len(row) > 2 else False,
-            header_debug_label="Dividends"
-        )
+        self.state_machine.transition_to_section(SectionNames.DIVIDENDS.value)
+        self.state_machine.process_section(rows, handler)
 
     def _parse_section_statement(self, rows, handler=None):
-        if self.logger:
-            self.logger.debug(f"[IBKR DEBUG] Parsing Statement section with {len(rows)} rows")
-        for row in rows:
-            if self.logger:
-                self.logger.debug(f"[IBKR DEBUG] Statement row: {row}")
-            if len(row) >= 4 and row[1] == "Data":
-                handler.handle_row({
-                    "field_name": row[2].strip(),
-                    "field_value": row[3].strip()
-                })
+        self.state_machine.transition_to_section(SectionNames.STATEMENT.value)
+        self.state_machine.process_section(rows, handler)
+        
+        # Post-process statement metadata
+        self._process_statement_metadata(handler)
+
+    def _process_statement_metadata(self, handler):
+        """Process and enhance statement metadata after parsing."""
+        if not handler:
+            return
+            
         meta = handler.statement_metadata
         if self.logger:
             self.logger.debug(f"[IBKR DEBUG] Extracted statement_info: {meta}")
+        
         # Parse period
+        self._parse_period(meta)
+        
+        # Parse generated date
+        self._parse_generated_date(meta)
+        
+        if self.logger:
+            self.logger.debug(f"[IBKR DEBUG] Final statement_metadata: {meta}")
+
+    def _parse_period(self, meta):
+        """Parse period information from statement metadata."""
         period = meta.get("Period", "")
         if " - " in period:
             period_start, period_end = [d.strip().replace('"', '') for d in period.split(" - ")]
@@ -185,7 +238,9 @@ class IbkrCsvParser(BaseCSVParser):
                     self.logger.debug(f"[IBKR DEBUG] Failed to parse period: {e}")
                 meta["PeriodStart"] = period_start
                 meta["PeriodEnd"] = period_end
-        # Parse generated date
+
+    def _parse_generated_date(self, meta):
+        """Parse generated date from statement metadata."""
         when_generated = meta.get("WhenGenerated", "").replace('"', '').split(",")[0]
         try:
             meta["GeneratedAt"] = datetime.strptime(when_generated, "%Y-%m-%d")
@@ -193,45 +248,10 @@ class IbkrCsvParser(BaseCSVParser):
             if self.logger:
                 self.logger.debug(f"[IBKR DEBUG] Failed to parse generated date: {e}")
             meta["GeneratedAt"] = when_generated
-        if self.logger:
-            self.logger.debug(f"[IBKR DEBUG] Final statement_metadata: {meta}")
 
-    def _parse_section_common(self, rows, handler, summary_row_check, header_debug_label=None):
-        """
-        Shared parsing logic for IBKR sections. Skips summary/total rows and handles header/data mapping.
-        summary_row_check: function(row) -> bool, returns True if row should be skipped as summary.
-        header_debug_label: optional string for debug logging.
-        """
-        def normalize_field(field):
-            return field.strip().lower().replace(' ', '_').replace('/', '_')
-        header = None
-        normalized_header = None
-        for row_num, row in enumerate(rows):
-            if not any(cell.strip() for cell in row):
-                continue
-            row_type = row[1].strip() if len(row) > 1 else None
-            if row_type == 'Header':
-                header = row[2:]
-                normalized_header = [normalize_field(h) for h in header]
-                if self.logger and header_debug_label:
-                    self.logger.debug(f"[IBKR DEBUG] Detected header in {header_debug_label}: {header}")
-                continue
-            if row_type == 'Data':
-                if not header:
-                    if self.logger and header_debug_label:
-                        self.logger.warning(f"[IBKR WARNING] Data row encountered before header in {header_debug_label} section.")
-                    continue
-                if summary_row_check(row):
-                    if self.logger and header_debug_label:
-                        self.logger.debug(f"[IBKR DEBUG] Skipping summary row in {header_debug_label}: {row}")
-                    continue
-                data_row = row[2:]
-                if len(data_row) != len(header):
-                    if self.logger and header_debug_label:
-                        self.logger.warning(f"[IBKR WARNING] Data/header length mismatch in {header_debug_label}: {data_row} vs {header}")
-                    continue
-                data = dict(zip(normalized_header, data_row))
-                handler.handle_row(data)
+    def _parse_section_forex_balances(self, rows, handler):
+        self.state_machine.transition_to_section(SectionNames.FOREX_BALANCES.value)
+        self.state_machine.process_section(rows, handler)
 
     def pretty_print(self, sections=None):
         """
@@ -269,6 +289,13 @@ class IbkrCsvParser(BaseCSVParser):
                     self.logger.info(f"{p['symbol']} {p['quantity']} {p['currency']} @ {p['cost_price']} (Cost Basis: {p['cost_basis']}) | Close: {p['close_price']} | Value: {p['value']} | UPL: {p['unrealized_pl']}")
             else:
                 self.logger.info("No open positions found.")
+        if 'forex_balances' in sections:
+            self.logger.info("=== Forex Balances ===")
+            if self.forex_balances:
+                for f in self.forex_balances:
+                    self.logger.info(f"{f['currency']} {f['quantity']} @ {f['cost_price']} (Cost Basis in CAD: {f['cost_basis_in_cad']}) | Close: {f['close_price']} | Value in CAD: {f['value_in_cad']} | UPL in CAD: {f['unrealized_pl_in_cad']}")
+            else:
+                self.logger.info("No forex balances found.")
 
     def parse(self, file_path: str):
         """
@@ -302,23 +329,8 @@ class IbkrCsvParser(BaseCSVParser):
         return self
 
     def _parse_section_generic(self, rows, handler):
-        def normalize_field(field):
-            return field.strip().lower().replace(' ', '_').replace('/', '_')
-        header = None
-        normalized_header = None
-        for row_num, row in enumerate(rows):
-            if not any(cell.strip() for cell in row):
-                continue
-            row_type = row[1].strip() if len(row) > 1 else None
-            if row_type == 'Header':
-                header = row[2:]
-                normalized_header = [normalize_field(h) for h in header]
-                continue
-            if row_type == 'Data':
-                if not header:
-                    continue
-                data_row = row[2:]
-                if len(data_row) != len(header):
-                    continue
-                data = dict(zip(normalized_header, data_row))
-                handler.handle_row(data)
+        """Generic section parsing using state machine."""
+        # Use the current section name if available, or fallback to generic
+        section_name = getattr(self.state_machine, 'current_section_name', 'Generic')
+        self.state_machine.transition_to_section(section_name)
+        self.state_machine.process_section(rows, handler)

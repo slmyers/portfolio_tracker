@@ -13,3 +13,6 @@ __pycache__/
 interactive_data_do_not_commit.csv
 ibkr_year_to_date.csv
 scrap.md
+.ruff_cache
+.pytest_cache
+.mypy_cache

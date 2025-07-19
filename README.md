@@ -2,19 +2,23 @@
 # Portfolio Tracker
 
 A modular Python application for financial data analysis, portfolio management, and LLM-powered insights.  
-Supports real-time stock data, robust CSV parsing (including Interactive Brokers reports), and both OpenAI and Grok (X) LLM integrations.  
-Built with dependency injection for clean architecture and easy extensibility.
+Supports real-time stock data, robust CSV parsing (including Interactive Brokers reports), portfolio management with historical price tracking, and both OpenAI and Grok (X) LLM integrations.  
+Built with dependency injection and Domain-Driven Design for clean architecture and easy extensibility.
 
 ---
 
 ## Features
 
-- Modular, testable architecture
-- Dependency injection with [`dependency-injector`](https://python-dependency-injector.ets-labs.org/)
-- Real-time stock price integration (Alpha Vantage)
-- Robust CSV parsing (generic and IBKR-specific)
-- LLM-powered analysis and summarization (OpenAI, Grok/X)
-- Easily extendable for new integrations, domains, or LLM providers
+- **Portfolio Management**: Complete portfolio tracking with equity and cash holdings
+- **Historical Price Data**: TimescaleDB integration for efficient historical equity price storage and querying
+- **IBKR Integration**: Full Interactive Brokers CSV import with trades, dividends, and positions
+- **Domain-Driven Design**: Clean domain models with proper aggregates, repositories, and events
+- **Modular Architecture**: Dependency injection with [`dependency-injector`](https://python-dependency-injector.ets-labs.org/)
+- **Real-time Stock Data**: Alpha Vantage API integration with lazy loading and caching
+- **Robust CSV Parsing**: Generic and IBKR-specific parsing capabilities
+- **LLM-powered Analysis**: OpenAI and Grok/X integrations for financial insights
+- **Multi-tenant Support**: Tenant isolation and user management
+- **Easily Extendable**: Clean interfaces for new integrations, domains, or LLM providers
 
 ---
 

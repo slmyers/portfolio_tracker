@@ -2,7 +2,7 @@ import unittest
 from uuid import uuid4
 from passlib.context import CryptContext
 from domain.user.user import User, Email, PasswordHash, Role
-from domain.user.repository.in_memory import InMemoryUserRepository
+from tests.repositories.user import InMemoryUserRepository
 from domain.user.user_service import UserService
 
 class UserServiceTest(unittest.TestCase):

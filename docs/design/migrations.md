@@ -60,7 +60,7 @@ This document describes how to manage database schema changes using Alembic as a
      ```
 2. **Apply migrations:**
    ```sh
-   PYTHONPATH=$(pwd) alembic -c infrastructure/migrations/alembic.ini upgrade head
+   PYTHONPATH=$(pwd) (TEST_ENV=true)? alembic -c infrastructure/migrations/alembic.ini upgrade head
    ```
    Alembic will track which migrations have been applied in the database.
 
