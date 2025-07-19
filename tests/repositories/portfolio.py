@@ -6,7 +6,6 @@ from decimal import Decimal
 from datetime import datetime
 
 from domain.portfolio.models.portfolio import Portfolio, PortfolioName
-from domain.portfolio.models.holding import CashHolding
 
 
 class TestPortfolioRepository:
