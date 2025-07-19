@@ -9,7 +9,7 @@ from domain.portfolio.models.holding import EquityHolding, CashHolding
 from domain.portfolio.portfolio_errors import DuplicateHoldingError
 
 
-class TestEquityHoldingRepository:
+class InMemoryEquityHoldingRepository:
     """Test-specific in-memory implementation of EquityHoldingRepository with utilities for testing."""
     
     def __init__(self):
@@ -197,7 +197,7 @@ class TestEquityHoldingRepository:
         return len(self._holdings)
 
 
-class TestCashHoldingRepository:
+class InMemoryCashHoldingRepository:
     """Test-specific in-memory implementation of CashHoldingRepository with utilities for testing."""
     
     def __init__(self):

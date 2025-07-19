@@ -8,10 +8,10 @@ from datetime import datetime
 from domain.portfolio.activity_management_service import ActivityManagementService
 from domain.portfolio.models.portfolio import Portfolio, PortfolioName
 from domain.portfolio.models.enums import Currency
-from tests.repositories.portfolio import TestPortfolioRepository
-from tests.repositories.equity import TestEquityRepository
-from tests.repositories.activity_report import TestActivityReportEntryRepository
-from tests.repositories.holdings import TestCashHoldingRepository
+from tests.repositories.portfolio import InMemoryPortfolioRepository
+from tests.repositories.equity import InMemoryEquityRepository
+from tests.repositories.activity_report import InMemoryActivityReportEntryRepository
+from tests.repositories.holdings import InMemoryCashHoldingRepository
 
 
 class ActivityManagementServiceTest(unittest.TestCase):
@@ -19,10 +19,10 @@ class ActivityManagementServiceTest(unittest.TestCase):
 
     def setUp(self):
         """Set up test dependencies."""
-        self.cash_holding_repo = TestCashHoldingRepository()
-        self.portfolio_repo = TestPortfolioRepository(self.cash_holding_repo)
-        self.equity_repo = TestEquityRepository()
-        self.activity_entry_repo = TestActivityReportEntryRepository()
+        self.cash_holding_repo = InMemoryCashHoldingRepository()
+        self.portfolio_repo = InMemoryPortfolioRepository(self.cash_holding_repo)
+        self.equity_repo = InMemoryEquityRepository()
+        self.activity_entry_repo = InMemoryActivityReportEntryRepository()
         
         self.service = ActivityManagementService(
             portfolio_repo=self.portfolio_repo,

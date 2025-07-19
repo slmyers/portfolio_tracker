@@ -7,7 +7,7 @@ from datetime import datetime
 from domain.portfolio.models.holding import Equity
 
 
-class TestEquityRepository:
+class InMemoryEquityRepository:
     """Test-specific in-memory implementation of EquityRepository with utilities for testing."""
     
     def __init__(self):

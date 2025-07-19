@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from domain.user.user import User, Email, PasswordHash, Role
 
 
-class TestUserRepository:
+class InMemoryUserRepository:
     """Test-specific in-memory implementation of UserRepository with utilities for testing."""
     
     def __init__(self):

@@ -8,7 +8,7 @@ from datetime import datetime
 from domain.portfolio.models.portfolio import Portfolio, PortfolioName
 
 
-class TestPortfolioRepository:
+class InMemoryPortfolioRepository:
     """Test-specific in-memory implementation of PortfolioRepository with utilities for testing."""
     
     def __init__(self, cash_holding_repo=None):

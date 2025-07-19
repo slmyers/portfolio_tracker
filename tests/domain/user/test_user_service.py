@@ -2,13 +2,13 @@ import unittest
 from uuid import uuid4
 from passlib.context import CryptContext
 from domain.user.user import User, Email, PasswordHash, Role
-from tests.repositories.user import TestUserRepository
+from tests.repositories.user import InMemoryUserRepository
 from domain.user.user_service import UserService
 
 class UserServiceTest(unittest.TestCase):
     def setUp(self):
         self.pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
-        self.repo = TestUserRepository()
+        self.repo = InMemoryUserRepository()
         self.service = UserService(self.repo)
         self.user_id = uuid4()
         self.tenant_id = uuid4()

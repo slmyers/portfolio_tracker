@@ -8,7 +8,7 @@ from datetime import datetime
 from domain.portfolio.models.activity_report_entry import ActivityReportEntry
 
 
-class TestActivityReportEntryRepository:
+class InMemoryActivityReportEntryRepository:
     """Test-specific in-memory implementation of ActivityReportEntryRepository with utilities for testing."""
     
     def __init__(self):

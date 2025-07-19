@@ -9,9 +9,9 @@ from domain.portfolio.portfolio_errors import DuplicateHoldingError
 from domain.portfolio.models.portfolio import Portfolio, PortfolioName
 from domain.portfolio.models.enums import Currency
 from domain.portfolio.models.holding import CashHolding
-from tests.repositories.portfolio import TestPortfolioRepository
-from tests.repositories.equity import TestEquityRepository
-from tests.repositories.holdings import TestEquityHoldingRepository, TestCashHoldingRepository
+from tests.repositories.portfolio import InMemoryPortfolioRepository
+from tests.repositories.equity import InMemoryEquityRepository
+from tests.repositories.holdings import InMemoryEquityHoldingRepository, InMemoryCashHoldingRepository
 
 
 class HoldingsManagementServiceTest(unittest.TestCase):
@@ -19,10 +19,10 @@ class HoldingsManagementServiceTest(unittest.TestCase):
 
     def setUp(self):
         """Set up test dependencies."""
-        self.cash_holding_repo = TestCashHoldingRepository()
-        self.portfolio_repo = TestPortfolioRepository(self.cash_holding_repo)
-        self.equity_repo = TestEquityRepository()
-        self.equity_holding_repo = TestEquityHoldingRepository()
+        self.cash_holding_repo = InMemoryCashHoldingRepository()
+        self.portfolio_repo = InMemoryPortfolioRepository(self.cash_holding_repo)
+        self.equity_repo = InMemoryEquityRepository()
+        self.equity_holding_repo = InMemoryEquityHoldingRepository()
         
         self.service = HoldingsManagementService(
             portfolio_repo=self.portfolio_repo,

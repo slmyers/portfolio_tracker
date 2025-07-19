@@ -5,15 +5,15 @@ from datetime import datetime
 from domain.portfolio.models.portfolio import Portfolio, PortfolioName
 from domain.portfolio.models.holding import Equity, EquityHolding, CashHolding
 from domain.portfolio.models.activity_report_entry import ActivityReportEntry
-from tests.repositories.portfolio import TestPortfolioRepository
-from tests.repositories.equity import TestEquityRepository
-from tests.repositories.holdings import TestEquityHoldingRepository, TestCashHoldingRepository
-from tests.repositories.activity_report import TestActivityReportEntryRepository
+from tests.repositories.portfolio import InMemoryPortfolioRepository
+from tests.repositories.equity import InMemoryEquityRepository
+from tests.repositories.holdings import InMemoryEquityHoldingRepository, InMemoryCashHoldingRepository
+from tests.repositories.activity_report import InMemoryActivityReportEntryRepository
 from domain.portfolio.portfolio_errors import DuplicateHoldingError
 
 class PortfolioTestRepositoryTest(unittest.TestCase):
     def setUp(self):
-        self.repo = TestPortfolioRepository()
+        self.repo = InMemoryPortfolioRepository()
         self.portfolio_id = uuid4()
         self.tenant_id = uuid4()
         self.portfolio = Portfolio(
@@ -97,7 +97,7 @@ class PortfolioTestRepositoryTest(unittest.TestCase):
 
 class InMemoryEquityHoldingRepositoryTest(unittest.TestCase):
     def setUp(self):
-        self.repo = TestEquityHoldingRepository()
+        self.repo = InMemoryEquityHoldingRepository()
         self.portfolio_id = uuid4()
         self.equity_id = uuid4()
         self.holding_id = uuid4()
@@ -225,7 +225,7 @@ class InMemoryEquityHoldingRepositoryTest(unittest.TestCase):
 
 class InMemoryCashHoldingRepositoryTest(unittest.TestCase):
     def setUp(self):
-        self.repo = TestCashHoldingRepository()
+        self.repo = InMemoryCashHoldingRepository()
         self.portfolio_id = uuid4()
         self.holding_id = uuid4()
         self.cash_holding = CashHolding(
@@ -291,7 +291,7 @@ class InMemoryCashHoldingRepositoryTest(unittest.TestCase):
 
 class InMemoryActivityReportEntryRepositoryTest(unittest.TestCase):
     def setUp(self):
-        self.repo = TestActivityReportEntryRepository()
+        self.repo = InMemoryActivityReportEntryRepository()
         self.portfolio_id = uuid4()
         self.equity_id = uuid4()
         self.entry_id = uuid4()
@@ -412,7 +412,7 @@ class InMemoryActivityReportEntryRepositoryTest(unittest.TestCase):
 
 class InMemoryEquityRepositoryTest(unittest.TestCase):
     def setUp(self):
-        self.repo = TestEquityRepository()
+        self.repo = InMemoryEquityRepository()
         self.equity_id = uuid4()
         self.equity = Equity(
             id=self.equity_id,
